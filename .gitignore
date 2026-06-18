@@ -3,3 +3,9 @@
 /used_dataset/fire
 /used_dataset/burn
 /used_dataset/admin
+# build / cache / outputs
+__pycache__/
+*.pyc
+.pytest_cache/
+/rust/pfire_kernels/target/
+/outputs/

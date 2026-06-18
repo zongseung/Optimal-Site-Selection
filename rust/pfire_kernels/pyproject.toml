@@ -1,0 +1,18 @@
+[build-system]
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "pfire_kernels"
+version = "0.1.0"
+description = "Rust/PyO3 Monte-Carlo downwind wildfire spread kernel for the pfire risk model"
+requires-python = ">=3.12"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+]
+
+[tool.maturin]
+# Build a single top-level extension module `pfire_kernels`.
+module-name = "pfire_kernels"
+features = ["pyo3/extension-module"]

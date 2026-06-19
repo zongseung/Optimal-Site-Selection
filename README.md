@@ -20,7 +20,7 @@
 | **③ 위험 = 발화 × 확산 × 기상 (I)** | 美 산불위험 평가 독트린(likelihood×intensity=hazard)과 동형 | Scott 2013 · USFS Wildfire Risk to Communities |
 | **④ 지역 전문가 혼합(MoE) (M)** | 전역 단일/개별 모델의 **원리적 중간(partial pooling)** — MoE 30년 계보 + 공간 비정상성 | Jacobs 1991 · Shazeer 2017 · Gelman & Hill 2007 · Feng 2026 |
 | **⑤ 공간 블록 CV + 격차 보고 (S)** | 무작위 CV는 성능을 **>50%→≈0까지 부풀림**. 우리 무작위-공간 격차 ≈ 0 = 그 함정 회피 증명 | Ploton 2020 · Roberts 2017 · Valavi 2019 |
-| **⑥ 풍하 MC 노출(확률 봉투) (S)** | 美·加 운영 표준(FSim·Burn-P3)과 **동일 패러다임** + 타원형 풍하 신장의 물리근거 | Finney 2011 · Rothermel 1972 |
+| **⑥ 풍하 MC 노출 → v2.2 변별 dose (S)** | 美·加 운영 표준(FSim·Burn-P3) 패러다임. **v2.2**(발화가중 기대도즈+LWR타원+국지정규화)로 포화 해제 → **결정 결합 recall +0.0071 확정**(§3.4) | Ager 2012 · Anderson 1983 · Finney 2011 |
 | **⑦ 양간지풍 방향 prior** | 일반 바람이 아닌 **강원 특이 푄(순간 20.4~27.6 m/s)** — 한국 시뮬로 검증된 결정적 기작 | KOSHAM 2021 · 기상관측 |
 | **⑧ KEPCO 자산 우선순위화** | 가장 비교가능한 강원 ML(AUC 0.839)조차 **자산무관(asset-blind)** — 전주를 안 봄. 그 교집합이 우리 신규성 | Lee 2025 · Hennessy 2025 |
 | **⑨ 베이지안 계층 사후 + per-regime 커버리지 (C)** | Poisson–Gamma 켤레 + BYM2 공간 CAR 로 zero-fire 지역을 부모로 축소(borrow strength), per-regime conformal 로 명목90% ≈ 실측0.90 **운영 커버리지 보장** | Gelman&Hill 2007 · Besag(BYM) · Angelopoulos&Bates 2021 |
@@ -377,6 +377,32 @@ PATH="$HOME/.cargo/bin:$PATH" ../../.venv/bin/maturin develop --release
 
 - **위치**: 고성 발화점(128.50°E, 38.21°N) 반경 전주(3,465개)의 **평균 위험백분위 = 0.602** — 인근 전주가 고위험 쪽에 위치함을 확인.
 - **방향성**: 풍하 노출이 실제 burn-scar 방향(서→동, ~6.7km)으로 신장되는지(`east_frac > 0.5`) 확인. (양간지풍 수치시뮬이 실제 고성 확산과 일치한다는 KOSHAM 2021과 정합.)
+
+### asset-aware ablation + 설비원인 화재 검증 (novelty 정직 검증)
+
+우리 핵심 novelty("전주=전력설비 자산을 발화원으로 모델")의 실효를 두 실험으로 정직하게 검증했습니다(`pfire/ablation.py`·`fire_cause.py`, 산출 `outputs/ablation_*.json`·`equipment_cause_validation.json`).
+
+**실험 A — asset-aware vs asset-blind 공정 LOGO ablation** (S·W·게이트·앵커·블록 **고정**, feature_set + 재튜닝 가중만 변경 → asset의 순효과 분리):
+
+| arm | top5% | top10% |
+|---|---|---|
+| blind (powerline 제외) | 0.092 | **0.189** |
+| aware (+powerline) | **0.103** | 0.183 |
+| plus (+substation) | 0.098 | 0.177 |
+
+→ 설비 근접 피처는 **거의 중립**(top5% +0.011 / top10% −0.006). 즉 powerline *피처 자체*는 발화점 recall을 뚜렷이 못 올림(공유 물리에 흡수).
+
+**실험 B — 원인별 recall** (safemap `resn` 238종을 설비/작업/인간/자연/미상 5범주 분류, 모델 비의존):
+
+| 원인 | n(매핑) | recall@5% | recall@10% |
+|---|---|---|---|
+| **설비전기 grid_electric** | 18 | **0.111** | **0.167** |
+| 인간 human | 476 | 0.079 | 0.151 |
+| 작업스파크 / 자연 | 17 / 16 | 0.000 | 0.000 |
+
+→ **설비원인 화재가 인간발화보다 더 잘 회수됨**(top10% 0.167 vs 0.151) — 위험맵이 KEPCO 관심사인 설비화재에 (인간발화 이상으로) 정렬한다는 *방향적* 증거.
+
+**정직한 결론**: 설비 n=18로 매우 희소 → **통계적 유의가 아니라 방향·메커니즘만**(train/test 미분리 pooled). 종합: 고위험 전주가 설비화재를 인간발화 이상으로 포착하나(B), 그게 powerline *피처* 때문은 아님(A, ~중립). **"asset novelty"는 *프레이밍·정렬* 로는 지지되되 *단일 피처 기여* 로는 미약** — 다년·다건 설비화재 라벨 도착 시 재검증 대상.
 
 ### 파생변수 심화 EDA — 정직한 발견 (천장의 출처)
 

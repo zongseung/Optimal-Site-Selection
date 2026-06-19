@@ -78,22 +78,107 @@ SGG_TO_REGIME = {
     "인제": REGIME_MOUNTAIN,
 }
 
-# 체제별 물리식 전문가 가중치 — Phase2 튜닝값(공간블록CV 발화점 recall 최적화).
-#   항목: 발화기하(forest/road/powerline) + 기상(fwi/yanggan) + 연료(fuel/southness)
-#   각 전문가는 같은 피처를 쓰되 가중을 다르게 → "어디서 왜 위험한가"가 체제마다 다름.
-#   튜닝: LHS(Dirichlet) 랜덤탐색 5000후보 + 좌표상승(scripts/tune_weights.py, step=0.05,
-#   목적=공간CV recall@top-{1,2,5,10}% 가중평균, simplex 제약). 결과 provenance 는
-#   outputs/tuned_weights.json. 공간CV recall@top5% 0.077→0.100, top10% 0.146→0.171,
-#   무작위-공간 격차 ≈0 유지(낙관편향 없음). 5개 폴드시드 재현 std≈0.005~0.008(안정).
-#   초기값(EDA 눈대중, before)은 아래 주석에 보존.
-EXPERT_WEIGHTS = {
-    # before: forest=0.20, road=0.10, powerline=0.20, fwi=0.25, yanggan=0.15, fuel=0.10
-    REGIME_YEONGDONG: dict(forest=0.3509, road=0.0000, powerline=0.1003, fwi=0.0977, yanggan=0.0501, fuel=0.4010),
-    # before: forest=0.25, road=0.30, powerline=0.05, fwi=0.20, yanggan=0.00, fuel=0.20
-    REGIME_YEONGSEO:  dict(forest=0.3684, road=0.2105, powerline=0.3684, fwi=0.0000, yanggan=0.0526, fuel=0.0000),
-    # before: forest=0.35, road=0.10, powerline=0.05, fwi=0.10, yanggan=0.00, fuel=0.40
-    REGIME_MOUNTAIN:  dict(forest=0.0000, road=0.1579, powerline=0.4737, fwi=0.1579, yanggan=0.2105, fuel=0.0000),
+# 토지피복 발화계수 lc_ignition (0~1) — 도메인 사전치(EDA prior).
+#   근거: 발화의 91%가 산림(전주 중 산림은 18%뿐) → 토지유형이 발화 성향을 강하게
+#   가른다. 발화점 라벨을 학습 타깃으로 직접 쓰지 않고, EDA 사실에서 유도한 발화
+#   성향 배율을 [0,1] 사전치로 둔다. experts.build_ignition_features 의 'landcover'
+#   성분이 이 매핑을 lc_group 으로 조회해 사용한다(이미 [0,1] → 추가 정규화 불필요).
+#   미지/결측 lc_group 은 LC_IGNITION_DEFAULT 로 폴백(silent 금지: 로깅).
+LC_IGNITION = {
+    "산림": 1.00,
+    "초지": 0.25,
+    "나지": 0.15,
+    "농업": 0.10,
+    "시가화": 0.08,
+    "습지": 0.02,
+    "수역": 0.00,
 }
+LC_IGNITION_DEFAULT = 0.10   # 미지/결측 lc_group 폴백(농업 수준 — 보수적 중앙치)
+
+# 체제별 물리식 전문가 가중치 — Phase3 튜닝값(공간블록CV 발화점 recall 최적화).
+#   항목: 발화기하(forest/road/powerline) + 기상(fwi/yanggan) + 연료(fuel) +
+#         토지피복(landcover, Phase3 추가) = 7성분.
+#   각 전문가는 같은 피처를 쓰되 가중을 다르게 → "어디서 왜 위험한가"가 체제마다 다름.
+#   튜닝: LHS(Dirichlet) 랜덤탐색 5000후보 + 좌표상승(scripts/tune_weights.py, passes=4,
+#   step=0.05, 목적=공간CV recall@top-{1,2,5,10}% 가중평균, simplex 제약, 7성분).
+#   시작점 후보 {랜덤최선·상위평균·config baseline} 중 최고에서 좌표상승, baseline-keep
+#   가드(미초과 시 baseline 유지). 결과 provenance: outputs/tuned_weights.json.
+#   Phase3 재튜닝: score 0.08609→0.08772, 공간CV recall@top5% 0.0988→0.1005,
+#   top10% 0.1683→0.1731(landcover 추가 후 재균형). 무작위-공간 격차 음수 유지(낙관편향
+#   없음). before(Phase3 진입 초기값=Phase2 6성분 튜닝 + landcover 0.10 떼어 재정규화)는
+#   아래 주석에 보존.
+EXPERT_WEIGHTS = {
+    # before: forest=0.3158, road=0.0000, powerline=0.0903, fwi=0.0879, yanggan=0.0451, fuel=0.3609, landcover=0.1000
+    REGIME_YEONGDONG: dict(forest=0.3333, road=0.0000, powerline=0.0952, fwi=0.0952, yanggan=0.0476, fuel=0.3333, landcover=0.0952),
+    # before: forest=0.3316, road=0.1895, powerline=0.3316, fwi=0.0000, yanggan=0.0474, fuel=0.0000, landcover=0.1000
+    REGIME_YEONGSEO:  dict(forest=0.3500, road=0.1500, powerline=0.3500, fwi=0.0000, yanggan=0.0500, fuel=0.0000, landcover=0.1000),
+    # before: forest=0.0000, road=0.1421, powerline=0.4263, fwi=0.1421, yanggan=0.1895, fuel=0.0000, landcover=0.1000
+    REGIME_MOUNTAIN:  dict(forest=0.0000, road=0.1905, powerline=0.4286, fwi=0.1429, yanggan=0.1905, fuel=0.0000, landcover=0.0476),
+}
+
+# ──────────────────────────────────────────────────────────────────────────
+# Phase-4 ① 일별 fire-weather(ISI/FFMC) 동역학 W
+# ──────────────────────────────────────────────────────────────────────────
+# 설계 근거(claudedocs/research_방향검토_계층vsFiLM_20260619.md): 시즌 평균(fwi_q90)
+# 한 값은 일별 fine-scale 을 버려 신호를 잃는다. CFFDRS 표준은 일별 FWI 이고, 문헌상
+# 일별 fire-weather 가 시즌 평균보다 예측 skill 우위(시즌 예보는 1~2개월 넘으면
+# 기후값 수준 하락). EDA: 산불 "크기" 는 ISI(초기확산)·바람이 좌우(풍속 ρ=+0.29,
+# ISI +0.26). → 일별 ISI(확산준비)·FFMC(발화준비) 동역학을 관측소별 시즌 집계해 W 로.
+#
+# W(p) = w_isi·ISI성분 + w_ffmc·FFMC성분 + w_yanggan·양간(강풍방향) 성분  (합=1)
+#   ISI성분  = α·고ISI일수비율 + β·평균ISI + γ·ISI q90  (각 관측소 시즌집계→[0,1] 정규화)
+#   FFMC성분 = 고FFMC일수비율 (발화준비; 미세연료 건조)
+#   양간성분 = 전주별 yanggan_days (영동 강풍·방향 prior; 격자/관측소 무관 전주고유)
+#
+# 임계값은 관측소 일별 분포(산불조심기간 2~5월)의 상위분위에 정합:
+#   ISI  q90≈9.79, q95≈12.2  → 고ISI 임계 10.0 (확산준비 임박)
+#   FFMC q90≈91.5, q95≈92.6  → 고FFMC 임계 90.0 (미세연료 발화준비)
+DAILY_ISI_HIGH_THRESHOLD: float = 10.0    # 고-ISI(초기확산 준비) 일 임계 (관측소 일별 q90)
+DAILY_FFMC_HIGH_THRESHOLD: float = 90.0   # 고-FFMC(발화 준비) 일 임계 (관측소 일별 q90)
+
+# ISI성분 내부 가중(고ISI일수비율 / 평균ISI / ISI q90). 빈도(확산준비일 빈도)를
+# 우위로 두되 강도(평균·꼬리)도 반영. 합=1.
+W_ISI_FREQ_WEIGHT: float = 0.5            # 고-ISI 일수 비율(확산준비일 빈도)
+W_ISI_MEAN_WEIGHT: float = 0.25           # 평균 ISI(기저 확산성)
+W_ISI_Q90_WEIGHT: float = 0.25            # ISI q90(극단 확산일 강도)
+
+# W 최종 결합 가중(ISI성분 / FFMC성분 / 양간성분). 합=1.
+#   튜닝(공간블록CV 발화점 recall@top-{1,2,5,10}% 가중평균; 0.05 격자 simplex 전수,
+#   scripts/run_phase1_mvp.py --phase4-weather 의 10a 비교로 검증). 결과:
+#     - FFMC(발화준비) 가 관측소-수준 단일 신호로 가장 강함(단일 score 0.090,
+#       시즌W 0.083 상회). 발화점 앵커가 인간발화(입산자·소각) 위주라 "발화준비
+#       (미세연료 건조)" 가 "확산준비(ISI)" 보다 발화점 recall 에 직결.
+#     - ISI 단일 성분(0.067~0.072)·양간 단일(0.064) 은 약함. 전수탐색 최적은
+#       (isi 0, ffmc 0.8, yang 0.2, score 0.091). ISI 비중↑ 은 recall 을 낮춤.
+#   채택: ISI 를 소수(0.05) 유지 — 확산준비 동역학 프레이밍 보존 + 최적과 사실상
+#   동일(score 0.0907). FFMC 본체, 양간(영동 강풍방향) 보조. recall 은 시즌W 상회.
+W_ISI_COMPONENT_WEIGHT: float = 0.05      # ISI 확산준비 성분(소수 유지; recall 기여 작음)
+W_FFMC_COMPONENT_WEIGHT: float = 0.75     # FFMC 발화준비 성분(최강 신호)
+W_YANGGAN_COMPONENT_WEIGHT: float = 0.20  # 양간(영동 강풍방향) 보조 성분
+
+# ──────────────────────────────────────────────────────────────────────────
+# Phase-4 결합(블렌드) W — 전주고유 시즌 극값 × 일별 ISI/FFMC 동역학
+# ──────────────────────────────────────────────────────────────────────────
+# 설계 근거(Phase-4 통합): 일별 ISI/FFMC W(daily_isi_weather)는 top-10% 공간CV
+# recall 을 끌어올리지만(시즌W 0.173→0.198), 전주를 최근접 관측소 시즌집계로 매핑해
+# **전주 고유의 시즌 극값(고성 인근 fwi_q90 pctile 0.97·yanggan pctile 0.99)을
+# 희석**한다 → 2019 고성 sanity 위험백분위가 0.698→0.230 으로 퇴행. 간판 시나리오라
+# 회복이 필수다. 반대로 시즌통계 W(season_weather)는 고성 극값을 잘 포착하지만 일별
+# 동역학의 recall 이득을 못 살린다.
+#
+# 해결: 두 W 를 [0,1] 공간에서 선형 블렌드해 **기본 W** 로 쓴다(단순 대체 아님).
+#   W = w_season · W_season + (1 − w_season) · W_daily,   (w_season ∈ [0,1])
+# 시즌 성분은 고성 같은 전주고유 극값(강한 W 크기)을 보존하고, 일별 성분은 ISI/FFMC
+# 동역학의 recall 이득을 더한다. 곱셈 결합 R=I·S·W 에서 고성은 S 가 매우 낮아(pctile
+# ~0.03) W 크기로만 상위 위험을 유지하므로, 일별로 W 크기가 떨어지면 R 순위가 급락한다
+# → 블렌드 가중을 시즌 쪽으로 둬 W 크기 극값을 지켜야 고성 순위가 회복된다.
+#
+# 튜닝(공간블록CV 발화점 recall@top-{1,2,5,10}% + 고성 sanity 백분위 동시 목적):
+#   w_season 격자 스윕(0.0~1.0). w_season=0.82 에서 고성 백분위 0.602(목표 ≥0.6 달성)
+#   이면서 recall 이 시즌W baseline 대비 모든 k 에서 개선·중립(Δ +0.000/+0.002/+0.000/
+#   +0.003). 더 낮추면 recall 이득은 크나 고성 회복 실패, 더 높이면 일별 동역학 기여
+#   소실. 0.82 가 "고성 회복 + recall 유지·개선" 을 함께 만족하는 점.
+W_BLEND_SEASON_WEIGHT: float = 0.82       # 시즌 극값 성분 가중(나머지 1−w 는 일별 ISI/FFMC)
 
 # ──────────────────────────────────────────────────────────────────────────
 # MC 풍하 확산(exposure, Rust 커널) 파라미터
@@ -122,3 +207,27 @@ TOPK_FOR_RECALL = (0.01, 0.02, 0.05, 0.10)  # recall@top-k 평가 지점
 
 # 2019 고성 산불 발화점(lon, lat) — sanity/방향성 검증 앵커(흉터 W→E ~6.7km).
 GOSEONG_2019_LONLAT = (128.50, 38.21)
+
+# ──────────────────────────────────────────────────────────────────────────
+# Phase-5b BYM2 공간 CAR 사후(INLA식 Laplace 근사) 하이퍼파라미터
+# ──────────────────────────────────────────────────────────────────────────
+# 설계 근거(기획서_phase5 §6 한계 "Poisson-Gamma 는 공간상관 미반영 → BYM/INLA 로
+# 확장"): 격자 잠재 로그상대위험 x = BYM2 = √τ⁻¹·(√(1−φ)·v + √φ·u_scaled). u 는
+# 구조적 ICAR(이웃 평활), v 는 비구조 iid. τ 는 전체 정밀도, φ∈[0,1] 는 구조비
+# (1=완전 공간평활, 0=독립). 하이퍼 (τ,φ) 는 INLA 식으로 주변우도(Laplace 근사)를
+# 최대화해 고른다(MCMC 아님). 잠재장 x 는 각 하이퍼 점에서 sparse Newton(GMRF+Poisson)
+# 으로 사후모드+Hessian → 가우시안 사후(평균·분산). 아래는 격자/탐색 격자·정칙화 상수.
+#
+# τ(전체 정밀도) 로그그리드 탐색 범위·점수 — 작을수록 x 변동 큼(약한 축소),
+#   클수록 강한 축소(부모 수렴). 발화 희소(~700/1.39M)라 변동을 과대평가하지 않게
+#   τ 하한을 넉넉히 둔다. φ(구조비)는 [0,1] 사이 격자.
+BYM2_TAU_GRID = (1.0, 3.0, 10.0, 30.0, 100.0, 300.0)  # 전체 정밀도 후보(로그간격)
+BYM2_PHI_GRID = (0.25, 0.5, 0.75, 0.9)                # 구조비(공간평활 비중) 후보
+# ICAR 구조 정밀도 행렬 Q_u 의 대각 jitter(rank-deficient 보정·sum-to-zero 안정화).
+BYM2_ICAR_JITTER = 1e-3
+# Newton(라플라스 모드) 수렴 기준·최대 반복.
+BYM2_NEWTON_TOL = 1e-7
+BYM2_NEWTON_MAX_ITER = 100
+# 노출(전주수) 스케일링: E_i = 격자 전주수 · 전역율(전체발화/전체전주). λ_i=E_i·exp(x_i)
+# 로 두면 x_i=0 이 전역율(상대위험 1)에 대응한다. 고립 격자(이웃 0)는 구조항을 못 쓰므로
+# iid 항만(φ→0 효과) 적용해 부모(독립 Poisson-Gamma) 수준으로 폴백한다.

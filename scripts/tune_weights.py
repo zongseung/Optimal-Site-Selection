@@ -1,7 +1,7 @@
 """Phase-2 EXPERT_WEIGHTS 튜닝 — 공간블록CV 발화점 recall 목적함수.
 
 설계 근거: Phase-1 의 EXPERT_WEIGHTS 는 EDA 눈대중 초기값이라 공간CV
-발화점 recall 이 낮았다(top-5%≈0.077). 여기서는 체제별 6항 가중을
+발화점 recall 이 낮았다(top-5%≈0.077). 여기서는 체제별 7항 가중(landcover 포함)을
 **단순체(simplex)** 로 두고, **랜덤/라틴하이퍼큐브 탐색 + 좌표상승**으로
 **공간 블록 CV recall@top-k(홀드아웃)** 를 최대화한다.
 
@@ -50,8 +50,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger("tune_weights")
 
-# 전문가 6항 순서(config.EXPERT_WEIGHTS 의 키와 동일 순서로 고정).
-FEAT_KEYS: tuple[str, ...] = ("forest", "road", "powerline", "fwi", "yanggan", "fuel")
+# 전문가 7항 순서(config.EXPERT_WEIGHTS 의 키와 동일 순서로 고정; Phase3 landcover 추가).
+FEAT_KEYS: tuple[str, ...] = ("forest", "road", "powerline", "fwi", "yanggan", "fuel", "landcover")
+# 전문가 항 수(simplex 차원) — FEAT_KEYS 길이에서 단일 진실로 파생.
+N_FEATS: int = len(FEAT_KEYS)
 # 목적함수 top-k 가중(top-5% 중심). 합=1 로 정규화해 사용.
 OBJ_W: dict[float, float] = {0.01: 0.15, 0.02: 0.25, 0.05: 0.40, 0.10: 0.20}
 
@@ -66,7 +68,7 @@ def _build_shared() -> dict[str, object]:
     pole_xy = master.select(["lon", "lat"]).to_numpy().astype(np.float64)
     gate, regime_order = regimes.compute_gate(master)  # (N,3)
     feats = experts.build_ignition_features(master)
-    feat_mat = np.stack([feats[k] for k in FEAT_KEYS], axis=1)  # (N,6)
+    feat_mat = np.stack([feats[k] for k in FEAT_KEYS], axis=1)  # (N, N_FEATS)
     W = weather.season_weather(master, source="features")       # (N,)
     S = np.clip(master["S_p"].to_numpy().astype(np.float64), 0.0, 1.0)
     fire_xy = positives.select(["lon", "lat"]).to_numpy().astype(np.float64)
@@ -79,13 +81,13 @@ def _build_shared() -> dict[str, object]:
 
 
 def _risk_from_weights(w: np.ndarray, shared: dict[str, object]) -> np.ndarray:
-    """가중 행렬 w (3,6, 행=체제 simplex) → R(p)=I×S×W.
+    """가중 행렬 w (3, N_FEATS, 행=체제 simplex) → R(p)=I×S×W.
 
     I = Σ_r gate[:,r]·expert_r, expert_r = Σ_j w[r,j]·feat_j (행합=1 이므로
     expert ∈[0,1]). gate 행합=1 → I∈[0,1].
     """
     gate = shared["gate"]            # (N,3)
-    feat_mat = shared["feat_mat"]    # (N,6)
+    feat_mat = shared["feat_mat"]    # (N, N_FEATS)
     experts_mat = feat_mat @ w.T     # (N,3) 각 체제 전문가 점수
     I = np.einsum("nr,nr->n", gate, experts_mat)  # (N,)
     I = np.clip(I, 0.0, 1.0)
@@ -124,8 +126,8 @@ def _sample_simplex_lhs(rng: np.random.Generator, n: int, dim: int) -> np.ndarra
 def _quantize(w: np.ndarray, step: float = 0.05) -> np.ndarray:
     """simplex 가중을 step 격자로 양자화 후 재정규화(미세과적합 회피·해석성).
 
-    마지막 축(=전문가 6항)이 simplex 라고 보고 그 축으로 정규화한다.
-    (3D (M,3,6) / 2D (3,6) / 1D (6,) 모두 last-axis 정규화로 동작.)
+    마지막 축(=전문가 N_FEATS 항)이 simplex 라고 보고 그 축으로 정규화한다.
+    (3D (M,3,F) / 2D (3,F) / 1D (F,) 모두 last-axis 정규화로 동작.)
     """
     q = np.round(w / step) * step
     q = np.clip(q, 0.0, None)
@@ -140,14 +142,14 @@ def _worker_init(shared: dict[str, object]) -> None:
 
 
 def _worker_eval(w_flat: np.ndarray) -> float:
-    """후보 1개 평가(워커). w_flat=(18,) → (3,6)."""
-    w = w_flat.reshape(3, 6)
+    """후보 1개 평가(워커). w_flat=(3*N_FEATS,) → (3, N_FEATS)."""
+    w = w_flat.reshape(3, N_FEATS)
     return _objective(w, _G)["score"]
 
 
 def _eval_batch(cands: np.ndarray, shared: dict[str, object],
                 workers: int) -> np.ndarray:
-    """후보 배열(M,3,6) 병렬 평가 → score (M,)."""
+    """후보 배열(M, 3, N_FEATS) 병렬 평가 → score (M,)."""
     flat = cands.reshape(cands.shape[0], -1)
     if workers <= 1:
         _G.update(shared)
@@ -174,7 +176,7 @@ def _coordinate_ascent(w0: np.ndarray, shared: dict[str, object],
         cands: list[np.ndarray] = []
         meta: list[tuple[int, int, float]] = []
         for r in range(3):
-            for j in range(6):
+            for j in range(N_FEATS):
                 for delta in (step, -step):
                     cand = w.copy()
                     nv = cand[r, j] + delta
@@ -234,10 +236,10 @@ def main() -> int:
     # 1) 랜덤/LHS 탐색 — 체제별 독립 simplex 표집 후 결합
     logger.info("=== 랜덤/LHS 탐색 N=%d ===", args.n_random)
     n = args.n_random
-    s_yd = _sample_simplex_lhs(rng, n, 6)
-    s_ys = _sample_simplex_lhs(rng, n, 6)
-    s_mt = _sample_simplex_lhs(rng, n, 6)
-    cands = np.stack([s_yd, s_ys, s_mt], axis=1)  # (n,3,6)
+    s_yd = _sample_simplex_lhs(rng, n, N_FEATS)
+    s_ys = _sample_simplex_lhs(rng, n, N_FEATS)
+    s_mt = _sample_simplex_lhs(rng, n, N_FEATS)
+    cands = np.stack([s_yd, s_ys, s_mt], axis=1)  # (n,3,N_FEATS)
     cands = _quantize(cands, step=args.quant_step)
     t1 = time.time()
     scores = _eval_batch(cands, shared, args.workers)
@@ -253,9 +255,16 @@ def main() -> int:
     top_w = top_w / top_w.sum(axis=1, keepdims=True)
     s_topmean = _objective(top_w, shared)["score"]
     logger.info("상위 %d 평균가중 score=%.5f", top_n, s_topmean)
-    # 단일 최선 vs 상위평균 중 좋은 쪽을 좌표상승 시작점으로.
-    start_w = w_best if scores[best_idx] >= s_topmean else top_w
-    start_score = max(scores[best_idx], s_topmean)
+    # 좌표상승 시작점 후보: 랜덤최선·상위평균·현 config baseline 중 최고점.
+    # baseline 도 후보에 넣어 "좋은 시작점 주변"을 명시적으로 더 탐색한다
+    # (랜덤탐색이 baseline 을 못 넘어도 그 이웃의 개선 가능성을 좌표상승이 흡수).
+    cand_starts = [
+        (w_best, float(scores[best_idx]), "random_best"),
+        (top_w, float(s_topmean), "top_mean"),
+        (w_init.copy(), float(base["score"]), "config_baseline"),
+    ]
+    start_w, start_score, start_tag = max(cand_starts, key=lambda t: t[1])
+    logger.info("좌표상승 시작점: %s (score=%.5f)", start_tag, start_score)
 
     # 2) 좌표상승 마무리
     logger.info("=== 좌표상승 (passes=%d, step=%.2f) ===", args.ca_passes, args.quant_step)
@@ -268,6 +277,12 @@ def main() -> int:
         w_tuned, final_score = w_q, score_q
     else:
         w_tuned, final_score = w_ca, score_ca
+    # baseline-keep 가드(정직): 탐색·좌표상승이 현 config baseline 을 넘지 못하면
+    # baseline 을 그대로 채택한다(점수를 해치지 않는다는 원칙; 좋은 시작점 존중).
+    if base["score"] >= final_score - 1e-9:
+        logger.info("튜닝 결과(%.5f)가 baseline(%.5f) 미초과 → baseline 유지",
+                    final_score, base["score"])
+        w_tuned, final_score = w_init.copy(), base["score"]
     final = _objective(w_tuned, shared)
     logger.info("최종 튜닝 score=%.5f (ca=%.5f quant=%.5f)",
                 final["score"], score_ca, score_q)

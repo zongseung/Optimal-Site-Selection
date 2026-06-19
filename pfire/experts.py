@@ -1,9 +1,10 @@
 """체제별 물리식 전문가 — 발화 성향 I(p) 성분.
 
-설계 근거: 같은 피처(발화기하 forest/road/powerline + 기상 fwi/yanggan + 연료 fuel)를
-체제마다 다른 가중(config.EXPERT_WEIGHTS)으로 결합한다 → "어디서 왜 위험한가"가
-체제별로 다르게 표현된다(영서=도로/입산자, 영동=송전선/양간풍, 산간=연료/산림).
-거리 피처는 가까울수록 위험↑ 이므로 exp(-d/scale) 로 0..1 정규화한 순수 함수.
+설계 근거: 같은 피처(발화기하 forest/road/powerline + 기상 fwi/yanggan + 연료 fuel +
+토지피복 landcover)를 체제마다 다른 가중(config.EXPERT_WEIGHTS)으로 결합한다 →
+"어디서 왜 위험한가"가 체제별로 다르게 표현된다(영서=도로/입산자, 영동=송전선/양간풍,
+산간=연료/산림). 거리 피처는 가까울수록 위험↑ 이므로 exp(-d/scale) 로 0..1 정규화한
+순수 함수. landcover 는 토지피복 발화계수 lc_ignition(config.LC_IGNITION 사전치, [0,1]).
 """
 from __future__ import annotations
 
@@ -37,6 +38,39 @@ def _minmax01(x: np.ndarray) -> np.ndarray:
     return (x - lo) / (hi - lo)
 
 
+def landcover_ignition(lc_group: list[str | None]) -> np.ndarray:
+    """토지피복 발화계수 lc_ignition (0~1) — config.LC_IGNITION 도메인 사전치 조회.
+
+    각 전주의 lc_group(농업/초지/산림/시가화/나지/습지/수역)을 config.LC_IGNITION
+    으로 [0,1] 발화계수에 매핑한다. 미지/결측 그룹은 config.LC_IGNITION_DEFAULT 로
+    폴백하고 그 개수를 로깅한다(silent 금지). 이미 [0,1] 사전치라 추가 정규화 없음.
+
+    Parameters
+    ----------
+    lc_group : list[str | None]
+        전주별 토지피복 그룹명(결측 None 가능).
+
+    Returns
+    -------
+    numpy.ndarray, shape (N,)
+        토지피복 발화계수 ∈ [0,1].
+    """
+    table = config.LC_IGNITION
+    default = config.LC_IGNITION_DEFAULT
+    out = np.empty(len(lc_group), dtype=np.float64)
+    n_default = 0
+    for i, g in enumerate(lc_group):
+        v = table.get(g) if g is not None else None
+        if v is None:
+            v = default
+            n_default += 1
+        out[i] = v
+    if n_default:
+        logger.warning("lc_group 미지/결측 %d개 → lc_ignition 기본치 %.2f 사용",
+                       n_default, default)
+    return out
+
+
 def build_ignition_features(master: pl.DataFrame) -> dict[str, np.ndarray]:
     """전주별 발화 성향 정규화 피처(0..1, 클수록 위험)를 만든다.
 
@@ -49,8 +83,9 @@ def build_ignition_features(master: pl.DataFrame) -> dict[str, np.ndarray]:
     Returns
     -------
     dict[str, numpy.ndarray]
-        키 forest/road/powerline/fwi/yanggan/fuel → (N,) 정규화 점수.
-        config.EXPERT_WEIGHTS 의 키와 일치한다.
+        키 forest/road/powerline/fwi/yanggan/fuel/landcover → (N,) 정규화 점수.
+        config.EXPERT_WEIGHTS 의 키와 일치한다. landcover 는 토지피복 발화계수
+        lc_ignition(config.LC_IGNITION 사전치)로, 이미 [0,1] 이라 정규화 없이 사용.
 
     Raises
     ------
@@ -58,7 +93,7 @@ def build_ignition_features(master: pl.DataFrame) -> dict[str, np.ndarray]:
         필요한 컬럼이 없을 때.
     """
     need = ["dist_to_forest", "dist_to_road", "dist_to_powerline",
-            "fwi_q90", "yanggan_days", "mu_flammability"]
+            "fwi_q90", "yanggan_days", "mu_flammability", "lc_group"]
     for c in need:
         if c not in master.columns:
             raise KeyError(f"발화피처에 필요한 컬럼 없음: {c}")
@@ -69,6 +104,7 @@ def build_ignition_features(master: pl.DataFrame) -> dict[str, np.ndarray]:
     fwi = master["fwi_q90"].to_numpy().astype(np.float64)
     yanggan = master["yanggan_days"].to_numpy().astype(np.float64)
     fuel = master["mu_flammability"].to_numpy().astype(np.float64)
+    lc = landcover_ignition(master["lc_group"].to_list())
 
     feats = {
         "forest": _decay(d_forest, DIST_SCALE_FOREST_M),
@@ -77,6 +113,7 @@ def build_ignition_features(master: pl.DataFrame) -> dict[str, np.ndarray]:
         "fwi": _minmax01(fwi),
         "yanggan": _minmax01(yanggan),
         "fuel": np.clip(fuel, 0.0, 1.0),
+        "landcover": lc,
     }
     for k, v in feats.items():
         if v.shape[0] != master.height:

@@ -26,6 +26,8 @@ __all__ = [
     "experts",
     "weather",
     "hazard",
+    "hierarchy",
+    "posterior",
     "exposure",
     "exposure_engine",
     "calibrate",

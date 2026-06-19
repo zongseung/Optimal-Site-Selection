@@ -78,6 +78,7 @@ def load_master() -> pl.DataFrame:
     )
     kfs = _read(config.F_POLE_KFS, ["pole_id", "kfs_fires"])
     sgg = _read(config.F_POLE_SGG, ["pole_id", "sgg"])
+    landcover = _read(config.F_POLE_LANDCOVER, ["pole_id", "lc_group"])
     fwi_obs = _read(
         config.F_POLE_FWI_OBS,
         ["pole_id", "fwi_q90_obs", "fwi_mean_obs", "fwi_max_obs", "fwi_hdd_obs",
@@ -90,6 +91,7 @@ def load_master() -> pl.DataFrame:
         .join(static, on="pole_id", how="left")
         .join(kfs, on="pole_id", how="left")
         .join(sgg, on="pole_id", how="left")
+        .join(landcover, on="pole_id", how="left")
         .join(fwi_obs, on="pole_id", how="left")
         .sort("pole_id")
     )

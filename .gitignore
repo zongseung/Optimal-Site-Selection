@@ -8,4 +8,6 @@ __pycache__/
 *.pyc
 .pytest_cache/
 /rust/pfire_kernels/target/
-/outputs/
+# 대용량 제출 CSV (재생성 가능, GitHub 파일당 100MB 초과) — 코드·문서만 추적
+/outputs/submissions/*.csv
+

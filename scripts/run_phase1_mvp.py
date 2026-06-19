@@ -220,6 +220,21 @@ def main() -> int:
     else:
         logger.info("계층 EB 배율 decision 미반영(off; 산출/분석으로만). mult_full 은 보고만.")
 
+    # 7c. 풍하 노출 v2.2 결합(변별 dose; pfire.exposure_v2). config.EXPOSURE_V2_BLEND_W=0
+    #     이면 skip. scipy 필요 — 없거나 실패 시 경고 후 기존 R 유지(decision 안전).
+    #     검증: w=0.5 공간CV recall +0.0071(5seed 신호·격차≈0). exposure_v2/README.md.
+    if config.EXPOSURE_V2_BLEND_W > 0:
+        try:
+            from pfire import exposure_v2 as _expv2
+            dose01_v2 = _expv2.compute_dose01(
+                master, I, gate, regime_order,
+                station_daily=io.load_station_daily(), aws_daily=io.load_aws_daily())
+            R = _expv2.blend_into_risk(R, dose01_v2, w=config.EXPOSURE_V2_BLEND_W)
+            logger.info("풍하 노출 v2.2 결합(w=%.2f) → R 갱신(decision 반영)",
+                        config.EXPOSURE_V2_BLEND_W)
+        except Exception as e:  # scipy 미설치 등 — 안전 skip
+            logger.warning("exposure_v2 결합 skip(%s) — 기존 R 유지", e)
+
     logger.info("=== 8. 발화점 보정(p_cal) ===")
     # p_cal: 단조 보정 확률(해석/보고용). ties 가 많아 순위·임계엔 연속 R 사용.
     p_cal = calibrate.calibrate_probability(R, fire_to_pole)

@@ -226,6 +226,10 @@ flowchart TD
 
 성능 본체는 **Rust(PyO3/maturin)** 입니다. 균일격자 공간 인덱스로 반경 질의를 가속하고, rayon으로 시뮬 축을 병렬화합니다. **N=1.38M, M=2,000, S=256 기준 약 5.9초**(단일스레드 184.5초 대비 **약 31배**). Rust가 없으면 **동일 의미론의 numpy 폴백**으로 end-to-end가 돌아갑니다 (계약: `claudedocs/CONTRACT_rust_python.md`).
 
+> **🆕 노출 v2.2 — 변별 가능 dose & 결정 반영 (`pfire/exposure_v2.py`)**
+> 위 OR 확률(`P=1−∏(1−reach)`)은 영동에서 **P≈1 로 포화**(변별 IQR≈0.01)라 결정에 못 썼습니다. 이를 ① **발화가중 기대도즈**(OR→`Σ I_g·reach`, 누적이라 비포화; Ager 2012 source–sink), ② **Anderson LWR 타원**(좁고 긴 풍하 회랑; Anderson 1983·Richards 1990), ③ **격자 국지정규화**(영동 배경 제거→상대 노출; Getis–Ord)로 재설계해 **변별 그라데이션**을 만들었습니다.
+> **검증**: 영동 변별 IQR **0.166→0.290**, 결정에 확률 OR 결합(`R ← 1−(1−R)(1−w·dose)`, w=0.5)했을 때 **공간블록 CV recall +0.0071**(5 fold-seed 일관 = 신호, 무작위-공간 격차≈0 = 낙관편향 없음, 2019 고성 방향 east_frac=1.0 유지). → "확산을 결정에 넣어야 한다"가 올바른 공식으로 입증돼 **이제 decision 에 반영**됩니다(`config.EXPOSURE_V2_BLEND_W`, 0 으로 끄기·0.25 보수). 설계·실측: [`exposure_v2/`](exposure_v2/README.md).
+
 ### 3.5 그날 기상 W → 시즌 위험 R(p) — 일별 ISI/FFMC 동역학 블렌드
 
 기본 W는 더 이상 시즌 평균(fwi_q90) 단독이 아니라 **시즌 극값과 일별 fire-weather 동역학의 블렌드**입니다 (`weather.blended_weather`, 가중 `config.W_BLEND_SEASON_WEIGHT`).

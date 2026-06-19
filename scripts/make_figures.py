@@ -181,8 +181,12 @@ def load_submission() -> pl.DataFrame:
 
 def load_positives() -> pl.DataFrame:
     fp = pl.read_parquet(POSITIVES)
-    # 강원(ctprvn_cd 42 = 구 강원 코드) 좌표만, lon/lat 유효
-    return fp.select("lon", "lat", "occu_year", "occu_mt", "sgg_cd").drop_nulls(["lon", "lat"])
+    # 강원 박스만: safemap 에 강원 밖 좌표오염 3건(35°N대; 전남·경남·울산권)이 섞여
+    # 있어 그림 하단에 점으로 찍힘 — 모델 미사용(≤1km 전주 귀속서 자동 제외)·그림 정리용.
+    return (fp.select("lon", "lat", "occu_year", "occu_mt", "sgg_cd")
+            .drop_nulls(["lon", "lat"])
+            .filter((pl.col("lat") >= 36.8) & (pl.col("lat") <= 38.7)
+                    & (pl.col("lon") >= 126.9) & (pl.col("lon") <= 129.6)))
 
 
 # ════════════════════════════════════════════════════════════════════════════

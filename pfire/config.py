@@ -223,7 +223,7 @@ SPREAD_SOUTHNESS_BETA = 0.3      # 남서사면 확산 보정 β (EDA: SW aspect
 #   변별 그라데이션화. OR-blend(w) 로 결정에 결합: R←1−(1−R)(1−w·dose01).
 #   검증: 영동 IQR 0.166→0.290, w=0.5 공간CV recall +0.0071(5seed 신호·격차≈0).
 # ──────────────────────────────────────────────────────────────────────────
-EXPOSURE_V2_BLEND_W = 0.5         # 결정 결합 가중(0=미반영). 확정 최적 0.5(보수=0.25)
+EXPOSURE_V2_BLEND_W = 0.25        # 결정 결합 가중(0=미반영). 확정=0.25(보수: churn↓·proxy정렬 리스크 완화; 신호 +0.0049)
 EXPOSURE_V2_N_SIMS = 16           # 체제별 바람 표집 수(기대도즈는 Bernoulli 없이 평균)
 EXPOSURE_V2_W_CROSS = 0.35        # 횡풍 스케일(km) — 작을수록 좁은 회랑
 EXPOSURE_V2_L_BACK = 0.35         # 풍상(backing) 스케일(km)

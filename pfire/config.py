@@ -117,6 +117,34 @@ EXPERT_WEIGHTS = {
 }
 
 # ──────────────────────────────────────────────────────────────────────────
+# Ablation — 자산(asset) 피처 기여 분리 (asset-aware vs asset-blind)
+# ──────────────────────────────────────────────────────────────────────────
+# 설계 근거(claudedocs/기획서_ablation_설비원인검증_20260619.md): 우리 novelty 주장
+# ("전주=전력설비 자산을 발화원으로 모델")이 실제 효과 있는지 LOGO ablation 으로 측정.
+# asset 피처(powerline·substation)를 통째로 빼고 남은 피처로 처음부터 재튜닝(공정).
+# experts.build_ignition_features 키의 부분집합. S·W 는 고정(혼동 차단: asset 은 I 에만).
+FEATURE_SET_ASSET_BLIND = ("forest", "road", "fwi", "yanggan", "fuel", "landcover")
+FEATURE_SET_ASSET_AWARE = FEATURE_SET_ASSET_BLIND + ("powerline",)
+FEATURE_SET_ASSET_PLUS = FEATURE_SET_ASSET_AWARE + ("substation",)
+
+# ──────────────────────────────────────────────────────────────────────────
+# 화재 원인 분류 — 설비원인 앵커 분리 검증 (resn 자유텍스트 → 5범주)
+# ──────────────────────────────────────────────────────────────────────────
+# 설계 근거(기획서_ablation_설비원인검증): asset 피처의 효과는 인간발화가 아니라
+# 설비·전기 원인 화재에서 나타나야 한다(메커니즘 정합). safemap_positives.resn(238종
+# 자유텍스트)을 검토 가능한 키워드 사전으로 분류한다. 우선순위 grid_electric >
+# work_spark > natural > human > unknown (혼합 문구 시 설비 신호 우선해 과소계수 방지;
+# 단 애매건은 outputs/fire_cause_labeled.csv 수기 검수로 보정 — 예 "벌채 전선줄 스파크").
+CAUSE_GRID_ELECTRIC = ("전선", "특고압", "고압선", "합선", "혼촉", "누전",
+                       "단락", "단선", "전기", "변압기", "개폐기", "전차선", "피복")
+CAUSE_WORK_SPARK = ("용접", "예초기", "스파크", "모노레일", "벌채", "그라인더")
+CAUSE_HUMAN = ("입산", "등산", "산악", "성묘", "실화", "소각", "담배", "담뱃",
+               "쓰레기", "폐기물", "논밭", "흡연", "풍등", "부주의", "화목")
+CAUSE_NATURAL = ("낙뢰", "벼락", "자연발화")
+# 위 무매칭 → "unknown"(원인미상·기타·조사중·방화 등).
+CAUSE_PRIORITY = ("grid_electric", "work_spark", "natural", "human", "unknown")
+
+# ──────────────────────────────────────────────────────────────────────────
 # Phase-4 ① 일별 fire-weather(ISI/FFMC) 동역학 W
 # ──────────────────────────────────────────────────────────────────────────
 # 설계 근거(claudedocs/research_방향검토_계층vsFiLM_20260619.md): 시즌 평균(fwi_q90)

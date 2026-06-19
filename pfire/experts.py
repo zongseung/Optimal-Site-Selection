@@ -22,6 +22,9 @@ logger = logging.getLogger(__name__)
 DIST_SCALE_FOREST_M: float = 100.0
 DIST_SCALE_ROAD_M: float = 300.0
 DIST_SCALE_POWERLINE_M: float = 1500.0
+# 변전소(substation) 근접 감쇠 — 전력설비 자산 피처 확장(ablation 'asset-plus' 암).
+# 변전소는 송전선보다 희소·광역이라 스케일을 성기게(3km) 둔다. 선택적 피처.
+DIST_SCALE_SUBSTATION_M: float = 3000.0
 
 
 def _decay(dist_m: np.ndarray, scale_m: float) -> np.ndarray:
@@ -115,6 +118,11 @@ def build_ignition_features(master: pl.DataFrame) -> dict[str, np.ndarray]:
         "fuel": np.clip(fuel, 0.0, 1.0),
         "landcover": lc,
     }
+    # 자산(asset) 피처 확장 — 변전소 근접(선택적). ablation 'asset-plus' 암에서만 사용.
+    # dist_to_substation 이 있을 때만 추가한다(합성입력 단위테스트 하위호환: 없으면 생략).
+    if "dist_to_substation" in master.columns:
+        d_sub = master["dist_to_substation"].to_numpy().astype(np.float64)
+        feats["substation"] = _decay(d_sub, DIST_SCALE_SUBSTATION_M)
     for k, v in feats.items():
         if v.shape[0] != master.height:
             raise ValueError(f"발화피처 '{k}' 길이 불일치")

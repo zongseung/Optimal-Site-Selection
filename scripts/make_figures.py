@@ -209,7 +209,7 @@ def fig1_risk_map(sub: pl.DataFrame, admin_rings, pos: pl.DataFrame):
     _draw_admin(ax, admin_rings)
     cb = fig.colorbar(sc, ax=ax, fraction=0.04, pad=0.02)
     cb.set_label("위험 점수 risk_score (단조보정)", fontsize=10)
-    ax.set_title("(a) 강원 전주 138만 개 — 위험 점수 분포", fontsize=13, fontweight="bold")
+    ax.set_title("(a) 위험 점수", fontsize=13, fontweight="bold")
     ax.set_xlabel("경도 (°E)")
     ax.set_ylabel("위도 (°N)")
 
@@ -226,14 +226,14 @@ def fig1_risk_map(sub: pl.DataFrame, admin_rings, pos: pl.DataFrame):
         ax.scatter(pos["lon"].to_numpy(), pos["lat"].to_numpy(), marker="*",
                    s=55, c="#1a1a1a", edgecolors="white", linewidths=0.4,
                    zorder=5, label=f"과거 발화점 ({pos.height}건, 검증 앵커)")
-    ax.set_title("(b) 위험 판정(decision=1) 전주 & 과거 발화점",
+    ax.set_title("(b) 위험 판정 & 발화점",
                  fontsize=13, fontweight="bold")
     ax.set_xlabel("경도 (°E)")
     ax.set_ylabel("위도 (°N)")
     ax.legend(loc="lower right", fontsize=8, framealpha=0.9, markerscale=3)
 
     fig.suptitle(
-        "그림 1. 강원 전주 산불 위험지도 — 위험 전주는 산림·해안·내륙 경계에 군집",
+        "그림 1. 강원 전주 산불 위험지도",
         fontsize=15, fontweight="bold", y=0.99,
     )
     fig.tight_layout(rect=(0, 0, 1, 0.97))
@@ -258,7 +258,7 @@ def fig2_regime_alloc(sub: pl.DataFrame, admin_rings, rj: dict):
         ax.scatter(lon[m], lat[m], s=0.5, c=color, rasterized=True, zorder=1,
                    label=f"{REGIME_KO[r]} ({m.sum():,})")
     _draw_admin(ax, admin_rings)
-    ax.set_title("(a) 체제 soft 게이트(MoE) — 영동/영서/산간 자동 분류",
+    ax.set_title("(a) 체제 게이트(MoE)",
                  fontsize=12, fontweight="bold")
     ax.set_xlabel("경도 (°E)")
     ax.set_ylabel("위도 (°N)")
@@ -300,7 +300,7 @@ def fig2_regime_alloc(sub: pl.DataFrame, admin_rings, rj: dict):
     ax.set_xticklabels([REGIME_KO[r] for r in regimes], fontsize=10)
     ax.set_ylabel("위험 판정(양성) 중 각 체제 비중 (%)", fontsize=10)
     ax.set_ylim(0, max(global_share.max(), regime_share.max()) + 14)
-    ax.set_title("(b) 편중 완화 — 전역컷은 한 체제에 쏠림 → 체제별컷으로 균형",
+    ax.set_title("(b) 편중 완화",
                  fontsize=12, fontweight="bold")
     ax.legend(loc="upper right", fontsize=9)
     # 양성률 주석
@@ -311,7 +311,7 @@ def fig2_regime_alloc(sub: pl.DataFrame, admin_rings, rj: dict):
             bbox=dict(boxstyle="round", fc="#fff8e1", ec="#e0c060"))
 
     fig.suptitle(
-        "그림 2. 지역 체제(MoE)와 편중 완화 — '전역 단일컷'의 지역 쏠림을 '체제별 컷'으로 균형화",
+        "그림 2. 지역 체제(MoE)와 편중 완화",
         fontsize=14, fontweight="bold", y=0.99,
     )
     fig.subplots_adjust(left=0.06, right=0.97, top=0.9, bottom=0.1)
@@ -352,8 +352,8 @@ def fig3_recall_topk(rj: dict):
     ax.set_xlabel("상위 위험 전주 비율 top-k (%)", fontsize=11)
     ax.set_ylabel("발화점 recall (공간 블록 CV, 홀드아웃)", fontsize=11)
     ax.set_xticks(kpct)
-    ax.set_title("그림 3. 발화점 recall@top-k — 랜덤 대비 약 2배(상위 5%에서 0.10),\n"
-                 "전역≈체제별 (체제별 컷이 recall을 해치지 않음)",
+    ax.set_title("그림 3. 발화점 recall@top-k (랜덤 대비 ~2배)\n"
+                 "",
                  fontsize=13, fontweight="bold")
     ax.legend(loc="upper left", fontsize=10)
     ax.grid(alpha=0.25)
@@ -403,7 +403,7 @@ def fig4_f1_sensitivity(rj: dict):
                 bbox=dict(boxstyle="round", fc="#e8f6f3", ec="#2a9d8f"))
     ax.set_xlabel("가정 양성비율 π (%) — KEPCO 비공개 정답 비율 모름", fontsize=10.5)
     ax.set_ylabel("proxy F1 (발화점 앵커 기준)", fontsize=10.5)
-    ax.set_title("(a) F1 민감도 — π를 몰라도 추세가 안정적·단조",
+    ax.set_title("(a) F1 민감도",
                  fontsize=12, fontweight="bold")
     ax.legend(fontsize=9.5)
     ax.grid(alpha=0.25)
@@ -419,14 +419,14 @@ def fig4_f1_sensitivity(rj: dict):
     ax.axvline(2.0, color="#2a9d8f", ls="--", lw=1.8)
     ax.set_xlabel("가정 양성비율 π = 예산 (%)", fontsize=10.5)
     ax.set_ylabel("발화점 recall", fontsize=10.5)
-    ax.set_title("(b) 예산↑ → recall↑ (전역·체제별 모두 랜덤 상회)",
+    ax.set_title("(b) 예산↑ → recall↑",
                  fontsize=12, fontweight="bold")
     ax.legend(fontsize=9.5)
     ax.grid(alpha=0.25)
 
     fig.suptitle(
-        "그림 4. 임계값 민감도 — '정답 양성비율(π)을 몰라도 robust'\n"
-        "정답 라벨이 없으니 0/1 컷은 별도 결정 → π 0.5~10%에서 거동을 투명하게 보고",
+        "그림 4. 임계값 민감도\n"
+        "",
         fontsize=13.5, fontweight="bold", y=1.0,
     )
     fig.tight_layout(rect=(0, 0, 1, 0.92))
@@ -528,8 +528,8 @@ def fig5_goseong(sub: pl.DataFrame, pos: pl.DataFrame):
     ax.set_xlabel("경도 (°E)")
     ax.set_ylabel("위도 (°N)")
     ax.set_title(
-        "그림 5. 2019 고성-속초 산불 케이스 — 발화점(서)→양간지풍 풍하(동)로 흉터 신장,\n"
-        "전주 위험 점수도 같은 서→동 축으로 분포 (발화·확산 시나리오와 정합)",
+        "그림 5. 2019 고성-속초 산불 케이스\n"
+        "",
         fontsize=12.5, fontweight="bold",
     )
     ax.legend(loc="lower left", fontsize=9, framealpha=0.92)
@@ -608,7 +608,7 @@ def fig6_ignition_decomp():
     for i, v in enumerate(vals):
         ax.text(v + max(vals) * 0.02, i, f"{v:.3f}", va="center", fontsize=9)
     ax.set_xlabel("발화 성향 I 기여도 (가중·정규화)", fontsize=10.5)
-    ax.set_title(f"(a) 왜 위험? — 발화 성향 I={total_I:.3f} 분해\n"
+    ax.set_title(f"(a) 발화 성향 I={total_I:.3f} 분해\n"
                  f"우세 체제 = {REGIME_KO[dom_regime]}",
                  fontsize=12, fontweight="bold")
 
@@ -646,7 +646,7 @@ def fig6_ignition_decomp():
         f"양간일={master['yanggan_days'][pick]:.1f}"
     )
     fig.suptitle(
-        "그림 6. 한 고위험 전주의 위험 분해 — 곱셈식이라 '왜 위험한지'가 항목별로 설명됨\n"
+        "그림 6. 고위험 전주 위험 분해\n"
         + info,
         fontsize=12.5, fontweight="bold", y=1.0,
     )
@@ -709,8 +709,8 @@ def fig7_sgg_risk_subplots(sub: pl.DataFrame, sgg_of_pole: np.ndarray):
     cbar = fig.colorbar(sc, ax=axes.tolist(), fraction=0.012, pad=0.01)
     cbar.set_label("위험 점수 risk_mean (사후평균; 전역 분위 색척도)", fontsize=11)
     fig.suptitle(
-        "그림 7. 16개 시군 서브플롯 위험지도 — 시군 단위로 '어디가 위험한가'\n"
-        "★ = zero-event 시군(고성·인제·화천·태백; 발화 0~소수 → 사후가 부모로 수렴)",
+        "그림 7. 시군별 위험지도\n"
+        "★ = zero-event 시군",
         fontsize=15, fontweight="bold", y=0.995,
     )
     fig.subplots_adjust(left=0.04, right=0.92, top=0.93, bottom=0.04,
@@ -772,7 +772,7 @@ def fig8_sgg_uncertainty_subplots(sub: pl.DataFrame, sgg_of_pole: np.ndarray):
     ze_mean = np.mean([sgg_mean_w[s] for s in ze]) if ze else float("nan")
     all_mean = np.mean(list(sgg_mean_w.values())) if sgg_mean_w else float("nan")
     fig.suptitle(
-        "그림 8. 16개 시군 사후 상대 불확실성 서브플롯 (위험폭÷평균) — '위험하지만 불확실' = 현장확인 1순위\n"
+        "그림 8. 시군별 사후 불확실성\n"
         f"★ zero-event 시군 평균 {ze_mean:.2f} vs 전체 평균 {all_mean:.2f} "
         "(발화 앵커 없는 지역일수록 상대 불확실성 큼)",
         fontsize=14.5, fontweight="bold", y=0.995,
@@ -829,8 +829,8 @@ def fig9_coverage(rj: dict):
     ax.set_ylabel("홀드아웃 발화점 실측 포함율 (커버리지)", fontsize=11)
     ax.set_ylim(0, 1.05)
     ax.set_title(
-        "그림 9. 체제별 명목 vs 실측 커버리지 — 공간블록 누수안전 홀드아웃 검증\n"
-        "'명목 90% 구간이 홀드아웃 발화점의 ≈90%를 포함하는가' = 커버리지 합격 기준",
+        "그림 9. 체제별 커버리지 (명목 90% vs 실측)\n"
+        "",
         fontsize=13, fontweight="bold")
     ax.legend(loc="lower right", fontsize=9.5, framealpha=0.95)
     ax.grid(axis="y", alpha=0.25)
@@ -889,7 +889,7 @@ def fig10_bym_vs_pg(rj: dict):
     mi = cmp.get("moran", {})
     bm = cmp.get("borrow_mean_watch", float("nan"))
     ax.set_title(
-        "그림 10. 독립 Poisson-Gamma vs BYM2 공간 CAR — zero-event 시군(★)의 이웃 borrow\n"
+        "그림 10. Poisson-Gamma vs BYM2 공간평활\n"
         f"Moran's I(매끄러움) PG={mi.get('pg', float('nan')):.3f} → BYM={mi.get('bym', float('nan')):.3f} | "
         f"zero-event 평균 borrow(추정 이동)={bm:.3f}",
         fontsize=12.5, fontweight="bold")

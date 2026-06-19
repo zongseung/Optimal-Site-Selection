@@ -85,9 +85,33 @@ expo01   = 백분위 / 로그-minmax 로 [0,1]                # 위험 결합용
 
 → dose는 (물리적으로 옳게) **영동 회랑을 더 밀어올려** top을 영동에 더 쏠리게 하는데, **발화 앵커(인간발화)는 거기 적어** recall 안 오름. 방향 sanity는 완벽(2019 고성 east_frac=1.00).
 
-**③ 결론(robust, 4가지 결합 모두 동일):** alpha-blend·raw OR·regime-norm OR·**de-saturated dose OR** 전부 발화 recall 못 올림 → **확산 = decision 미포함이 정직**(지표가 확산을 신용 못 함 + 확산 라벨은 burn-scar n=2뿐). **단 v2.0 dose는 노출 *표현/ops* 를 포화 binary → 변별 그라데이션으로 크게 개선** = 정성·활용 레인의 실익. flagship 그림 `fig_flagship_exposure.png`, 산출 `outputs/pole_dose_v2.parquet`.
+**③ 결론(v2.0까지):** v2.0 iso dose 는 영동 회랑을 더 밀어올려 recall 무기여(영동 쏠림). **단 이 결론은 v2.2(국지정규화)가 뒤집음 → §6.** v2.0 dose 도 노출 *표현/ops* 는 포화 binary → 변별 그라데이션으로 크게 개선. flagship `fig_flagship_exposure.png`, 산출 `outputs/pole_dose_v2.parquet`.
 
-**다음(옵션)**: v2.1 LWR 타원·v2.2 국지정규화로 회랑 더 날카롭게(정성 강화) / ops_priority 를 dose 연속값으로 교체. **재검토 조건**: 다년 burn-scar 또는 KEPCO 실타깃 도착.
+## 6. v2.1 타원 + v2.2 국지정규화 — 확정 결과 (2026-06-19)
+
+`proto_v1_ellipse.py`(타원·국지정규화) · `proto_v2_confirm.py`(w스윕×5seed). 산출 `outputs/pole_dose_v2_ellipse.parquet`, 그림 `fig_v1_corridor.png`.
+
+| 변형 | 영동 IQR | 비고 |
+|---|---|---|
+| v2.0 iso | 0.166 | — |
+| v2.1 LWR 타원 | 0.171 | 미미(타원만으론 거의 무변화) |
+| **v2.2 타원+국지정규화** | **0.290** | 변별 최강 |
+
+**핵심 — v2.2 가 recall 을 *확정* 으로 올림** (5 fold-seed mean±std):
+| w | recall | Δ vs baseline | 판정 |
+|---|---|---|---|
+| 0.00 | 0.0788±0.0027 | — | 기준 |
+| 0.25 | 0.0836±0.0039 | +0.0049 | 신호 |
+| **0.50** | **0.0859±0.0031** | **+0.0071** | **신호**(>합성std 0.004) |
+| 0.75 / 1.0 | 0.0820 / 0.0794 | +0.003 / +0.001 | 잡음내(과대주입) |
+
+- w=0.5: top5% 0.1005→**0.1066**, top10% 0.1731→**0.1807**. **무작위-공간 격차 baseline −0.017 → +v2.2 +0.004 (둘 다 ≈0, 낙관편향 없음).**
+- **왜**: 국지정규화(Getis–Ord식 상대노출)가 영동 배경을 걷어내 → 노출이 발화앵커가 있는 *모든* 지역 회랑을 부각 → recall↑. **"확산을 결정에 넣어야 한다"가 올바른 공식(de-sat+국지정규화)으로 데이터로 입증.**
+- **한계**: +0.0071은 *proxy* recall(인간발화 앵커) 기준·절대값 modest. KEPCO 실타깃 미지. 단 5seed 일관+편향0+방향정확(east 0.98)+원리적.
+
+**채택**: `R = 1−(1−R발화)(1−0.5·dose_v2.2)` (w=0.5). `integrate_v2blend.py` 가 standalone 으로 적용·검증(파이프라인 `run_phase1_mvp` merge 는 다른 세션 멈춘 뒤).
+
+
 
 ## 부록. 출처 검증 flag
 - 1차 검증: Anderson 1983(식 ELMFIRE 기술문서 대조), Richards 1990(DOI/ADS), Ager 2012(DOI/USFS), Finney 2002(DOI 10.1139/x02-068, CJFR 32(8):1420), Getis–Ord(정의).

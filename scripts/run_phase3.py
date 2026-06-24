@@ -209,9 +209,15 @@ def main() -> int:
     logger.info("[최종 채택]      전체: %s", _fmt_cv(cv_final_full))
     logger.info("[최종 채택]      영동: %s", _fmt_cv(cv_final_yd))
 
-    logger.info("=== 10. 임계값 결정 → decision ===")
+    logger.info("=== 10. 임계값 결정 → decision (regime-anchor 레짐별 배분) ===")
     p_cal = calibrate.calibrate_probability(R_final, f2p)
-    thr, decision = calibrate.decide_threshold(R_final, args.prevalence)
+    regime_lbl = np.array(regime_order)[gate.argmax(axis=1)]
+    # 결정층: 전역 단일컷 대신 체제별 발화앵커밀도 배분(regime-anchor). 전역컷이 위험점수
+    # 높은 영동을 싹쓸이하는 것을 막아 영서·산간의 체제-상대 고위험 전주도 잡는다(within
+    # 철학과 정합·운영 전지역 커버). 총 양성 예산은 전역과 동일(prevalence·N).
+    anchor_count = calibrate.regime_anchor_count(regime_lbl, f2p)
+    _thr_r, decision = calibrate.decide_threshold_per_regime(
+        R_final, regime_lbl, args.prevalence, calibrate.ALLOC_ANCHOR, anchor_count)
 
     logger.info("=== 11. sanity: 2019 고성(위험 백분위) ===")
     sn = validate.sanity_goseong_2019(pole_xy, R_final)
@@ -219,7 +225,6 @@ def main() -> int:
                 int(sn["n_poles"]), sn["mean_pctile"], sn["frac_top10"])
 
     logger.info("=== 12. 제출 CSV 작성 ===")
-    regime_lbl = np.array(regime_order)[gate.argmax(axis=1)]
     # 불확실성 밴드는 베이지안 사후(risk_lo/hi)만 동봉한다 — 이 Phase-3 러너는 사후를
     # 돌리지 않으므로 밴드 없이 결정만 낸다(구 unc_lo/hi 휴리스틱은 퇴화로 제거).
     sub = submit.build_submission(

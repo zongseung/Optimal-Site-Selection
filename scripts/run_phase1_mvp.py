@@ -451,8 +451,9 @@ def main() -> int:
         adopt_mode = f"conformal(α={args.conformal_alpha})"
 
     logger.info("=== 13. 제출 CSV 작성 (채택 배분=%s) ===", adopt_mode)
-    # 불확실성 프록시: extrap_flag/관측소 거리로 ±폭(해석용, 하위호환 보존).
-    unc = _uncertainty_band(master, p_cal)
+    # 불확실성은 베이지안 사후 MC credible(risk_lo/risk_hi)을 단일 진실로 동봉한다.
+    #   구 unc_lo/unc_hi 휴리스틱 밴드(extrap·관측소거리 ±폭)는 risk_score 스케일(≈0.003)과
+    #   안 맞아 unc_lo 가 0 으로 퇴화 → eda_derived 권고대로 제거. 유효 밴드는 risk_lo/hi 뿐.
     pole_id_arr = master["pole_id"].to_numpy()
     # 표시용 백분위 — decision 과 **동일한 R** 로 1회 계산(완전 정렬). 글로벌 + 체제내.
     #   raw risk(p_cal)은 절대값이 작아(≈0.01) 정성 전달이 약함 → 0~100 지수 동봉.
@@ -467,7 +468,6 @@ def main() -> int:
         decision=decision, risk_score=p_cal,
         regime=regime_lbl, p_exposure=p_exposure,
         risk_lo=risk_lo, risk_hi=risk_hi, ops_priority=ops_priority,
-        unc_lo=unc[0], unc_hi=unc[1],
     ).with_columns(_PCT_COLS)
     path = submit.write_submission(sub, name="submission.csv")
 
@@ -499,7 +499,7 @@ def main() -> int:
                 pole_id=pole_id_arr, lon=pole_xy[:, 0], lat=pole_xy[:, 1],
                 decision=dec_v, risk_score=p_cal, regime=regime_lbl,
                 p_exposure=p_exposure, risk_lo=risk_lo, risk_hi=risk_hi,
-                ops_priority=ops_priority, unc_lo=unc[0], unc_hi=unc[1],
+                ops_priority=ops_priority,
             ).with_columns(_PCT_COLS)
             vname = f"submission_p{rho:g}.csv"
             submit.write_submission(sub_v, name=vname)
@@ -541,17 +541,6 @@ def main() -> int:
                 path, sub.height, int(sub["decision"].sum()),
                 100.0 * sub["decision"].mean(), adopt_mode, adopt_mult)
     return 0
-
-
-def _uncertainty_band(master, p_cal: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """관측외삽(extrap_flag)·관측소 거리로 단순 불확실성 밴드(해석용)."""
-    nn_km = master["nn_station_km"].to_numpy().astype(np.float64)
-    extrap = master["extrap_flag"].to_numpy().astype(np.float64) if "extrap_flag" in master.columns else np.zeros(len(p_cal))
-    nn_norm = np.clip(nn_km / (np.nanmax(nn_km) + 1e-9), 0, 1)
-    width = 0.05 + 0.15 * nn_norm + 0.10 * extrap
-    lo = np.clip(p_cal - width, 0.0, 1.0)
-    hi = np.clip(p_cal + width, 0.0, 1.0)
-    return lo, hi
 
 
 def _smoke_exposure(master, pole_xy: np.ndarray) -> np.ndarray:

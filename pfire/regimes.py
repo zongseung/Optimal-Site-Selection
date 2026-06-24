@@ -1,10 +1,11 @@
-"""체제(regime) soft 게이트 — 전주 피처 → (N,3) 체제 가중(행합=1).
+"""체제(regime) soft 게이트 — 전주 피처 → (N, R) 체제 가중(행합=1).
+R=레짐 수(len(config.REGIMES), 현재 4: 영동·회랑·영서·산악).
 
-설계 근거: 영동/영서/산간은 발화·확산 메커니즘이 다르다(영동 양간일 2.33·FWI 9.2
-vs 영서 0.3·5.24). 하드 시군 분할 대신 전주 피처(경도·고도·양간일)를 표준화해
-체제 앵커와의 거리 기반 softmax 로 soft 가중을 준다 → 경계 전주는 자연 블렌딩,
-소표본 시군(고성179·화천364·인제377)도 피처로 안정적으로 배치된다.
-SGG_TO_REGIME 은 앵커 도출·검증용으로만 쓴다(하드 라벨 아님).
+설계 근거: 영동/회랑/영서/산악은 발화·확산 메커니즘이 다르다(영동 양간일 2.33·FWI 9.2
+vs 영서 0.3·5.24). 양간지풍 회랑(양양·고성·속초)을 별도 체제로 분리한다. 하드 시군
+분할 대신 전주 피처(경도·고도·양간일)를 표준화해 체제 앵커와의 거리 기반 softmax 로
+soft 가중을 준다 → 경계 전주는 자연 블렌딩, 소표본 시군(고성179·화천364·인제377)도
+피처로 안정적으로 배치된다. SGG_TO_REGIME 은 앵커 도출·검증용으로만 쓴다(하드 라벨 아님).
 """
 from __future__ import annotations
 
@@ -72,10 +73,10 @@ def compute_gate(master: pl.DataFrame) -> tuple[np.ndarray, list[str]]:
 
     Returns
     -------
-    weights : numpy.ndarray, shape (N, 3)
+    weights : numpy.ndarray, shape (N, R)
         체제 가중(행합=1). 열 순서는 반환되는 regime_order 와 동일.
     regime_order : list[str]
-        config.REGIMES 순서(yeongdong, yeongseo, mountain).
+        config.REGIMES 순서(yeongdong, corridor, yeongseo, mountain).
 
     Raises
     ------
@@ -98,7 +99,7 @@ def compute_gate(master: pl.DataFrame) -> tuple[np.ndarray, list[str]]:
     regime_order = list(config.REGIMES)
     anchor_mat = np.stack([anchors[r] for r in regime_order], axis=0)  # (3, F)
 
-    # 각 전주-앵커 거리 제곱 (N, 3)
+    # 각 전주-앵커 거리 제곱 (N, R)
     diff = feats_z[:, None, :] - anchor_mat[None, :, :]
     dist2 = np.sum(diff * diff, axis=2)
 

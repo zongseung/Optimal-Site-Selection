@@ -23,7 +23,6 @@ import time
 from concurrent.futures import ProcessPoolExecutor
 
 import numpy as np
-import polars as pl
 
 from pfire import calibrate, config, experts, io, regimes, validate, weather
 
@@ -56,13 +55,13 @@ def load_ablation_shared() -> dict:
     Returns
     -------
     dict
-        master, gate(N,3), regime_order(list[str]), feats(dict[str,(N,)]),
+        master, gate(N, R), regime_order(list[str]), feats(dict[str,(N,)]),
         S(N,), W(N,), pole_xy(N,2), fire_to_pole(M,), blocks(N,).
     """
     master = io.load_master()
     positives = io.load_positives()
     pole_xy = master.select(["lon", "lat"]).to_numpy().astype(np.float64)
-    gate, regime_order = regimes.compute_gate(master)  # (N,3)
+    gate, regime_order = regimes.compute_gate(master)  # (N, R)
     feats = experts.build_ignition_features(master)    # dict[str, (N,)]
     # asset 은 I 에만 들어가므로 W·S 는 asset 무관 — 모든 암 고정.
     W = weather.season_weather(master, source="features")  # (N,)
@@ -113,7 +112,7 @@ def build_risk(shared: dict, feature_set: str | tuple[str, ...],
     빌드 식(스펙 고정)::
 
         feat_mat   = stack([feats[k] for k in feature_set], axis=1)   # (N, d)
-        experts_mat = feat_mat @ w.T                                  # w (3,d) 행-simplex
+        experts_mat = feat_mat @ w.T                                  # w (R,d) 행-simplex
         I = clip(einsum("nr,nr->n", gate, experts_mat), 0, 1)
         R = clip(I * S * W, 0, 1)
 
@@ -143,7 +142,7 @@ def build_risk(shared: dict, feature_set: str | tuple[str, ...],
         raise ValueError(
             f"weights 형상 {w.shape} != (3, {len(keys)}) (feature_set={keys})")
     feat_mat = np.stack([feats[k] for k in keys], axis=1)  # (N, d)
-    experts_mat = feat_mat @ w.T                           # (N, 3)
+    experts_mat = feat_mat @ w.T                           # (N, R)
     I = np.clip(np.einsum("nr,nr->n", shared["gate"], experts_mat), 0.0, 1.0)
     R = np.clip(I * shared["S"] * shared["W"], 0.0, 1.0)
     return R
@@ -177,7 +176,7 @@ def _worker_eval(w_flat: np.ndarray) -> float:
     d = int(_G["n_feats"])
     w = np.asarray(w_flat, dtype=np.float64).reshape(3, d)
     feat_mat = _G["feat_mat"]          # (N, d)
-    experts_mat = feat_mat @ w.T       # (N, 3)
+    experts_mat = feat_mat @ w.T       # (N, R)
     I = np.clip(np.einsum("nr,nr->n", _G["gate"], experts_mat), 0.0, 1.0)
     R = np.clip(I * _G["S"] * _G["W"], 0.0, 1.0)
     return _objective_from_R(R, _G)["score"]
@@ -193,7 +192,7 @@ def _make_worker_state(shared: dict, feat_mat: np.ndarray) -> dict:
 
 
 def _eval_batch(cands: np.ndarray, state: dict, workers: int) -> np.ndarray:
-    """후보 배열 (M, 3, d) 병렬 평가 → score (M,). per-arm fresh pool.
+    """후보 배열 (M, R, d) 병렬 평가 → score (M,). per-arm fresh pool.
 
     workers<=1 이면 동일 프로세스에서 직렬 평가(테스트·디버그용).
     """

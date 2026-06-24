@@ -1,9 +1,13 @@
 """제출 CSV 작성 — 필수 스키마 + 해석용 추가 컬럼.
 
 설계 근거: 채점은 pole_id·decision(0/1) 의 F1. 정성평가(활용성)를 위해
-risk_score·regime·p_exposure·사후 credible(risk_lo/risk_hi)·운영플래그(ops_priority)·
-불확실성(unc_lo/unc_hi) 을 추가 컬럼으로 동봉한다. 제출 무결성(행수 1,387,831·
-decision 0/1만·pole_id 정렬)을 강제 검증한다.
+risk_score·regime·p_exposure·사후 credible(risk_lo/risk_hi)·운영플래그(ops_priority)
+를 추가 컬럼으로 동봉한다. 제출 무결성(행수 1,387,831·decision 0/1만·pole_id 정렬)을
+강제 검증한다.
+
+불확실성은 베이지안 사후 MC credible(risk_lo/risk_hi)을 단일 진실로 쓴다. 구
+unc_lo/unc_hi(extrap·관측소거리 휴리스틱 밴드)는 risk_score 스케일과 안 맞아 unc_lo 가
+0 으로 퇴화해 제거했다(파라미터는 하위호환으로 남기되 러너는 더 이상 넘기지 않는다).
 
 Phase-5 추가 컬럼:
   - p_exposure(항목1): 풍하 노출확률 복구(README 스펙 일치). 체제별 재생성 때 누락분.
@@ -61,7 +65,8 @@ def build_submission(
     ops_priority : numpy.ndarray or None
         영동 풍하 고노출 운영 우선 플래그(항목2). 0/1.
     unc_lo, unc_hi : numpy.ndarray or None
-        (구) 해석용 불확실성 하/상한(하위호환 보존).
+        (deprecated) 구 해석용 불확실성 하/상한. 퇴화로 제거됨 — 넘기지 말 것.
+        파라미터는 하위호환을 위해서만 남긴다(유효 밴드는 risk_lo/risk_hi).
 
     Returns
     -------

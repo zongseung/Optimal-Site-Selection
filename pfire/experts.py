@@ -172,7 +172,7 @@ def ignition_propensity(
     ----------
     master : polars.DataFrame
         발화 피처 컬럼 포함.
-    gate_weights : numpy.ndarray, shape (N, 3)
+    gate_weights : numpy.ndarray, shape (N, R)
         regimes.compute_gate 출력(행합=1).
     regime_order : list[str]
         gate_weights 열 순서.
@@ -188,7 +188,7 @@ def ignition_propensity(
         raise ValueError("게이트 행수와 master 행수 불일치")
     feats = build_ignition_features(master)
     per_expert = {r: expert_score(feats, r) for r in regime_order}
-    expert_mat = np.stack([per_expert[r] for r in regime_order], axis=1)  # (N,3)
+    expert_mat = np.stack([per_expert[r] for r in regime_order], axis=1)  # (N, R)
     I = np.sum(gate_weights * expert_mat, axis=1)
     I = np.clip(I, 0.0, 1.0)
     logger.info("ignition I(p): mean=%.4f p50=%.4f p99=%.4f",

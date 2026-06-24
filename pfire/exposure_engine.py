@@ -199,7 +199,7 @@ def compute_exposure(
 
     발화후보(I 상위 분위)에서, 체제별로 표집한 바람으로 exposure 커널을
     돌려 P(노출)을 얻고 체제별 결과를 전주 우세체제 가중으로 결합한다.
-    영동은 양간 서풍 prior 라 풍하(동쪽)로 신장된 노출, 영서/산간은 관측 풍향.
+    영동은 양간 서풍 prior 라 풍하(동쪽)로 신장된 노출, 영서·산악은 관측 풍향.
 
     Parameters
     ----------
@@ -207,7 +207,7 @@ def compute_exposure(
         lon, lat, mu_flammability, mu_southness 포함.
     I : numpy.ndarray, shape (N,)
         발화 성향(발화후보 선정용).
-    gate : numpy.ndarray, shape (N, 3)
+    gate : numpy.ndarray, shape (N, R)
         체제 soft 가중(행합=1) — 체제별 노출 결합 가중.
     regime_order : list[str]
         gate 열 순서.

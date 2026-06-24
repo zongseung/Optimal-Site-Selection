@@ -1,0 +1,353 @@
+% =====================================================================
+%  MOSAIC — 사용 수식 정리 (이해용 레퍼런스)
+%  컴파일: xelatex formulas.tex   (권장; 한글)
+%          또는 pdflatex + kotex
+%  내용은 pfire/ 소스의 실제 구현과 1:1 대응한다(모듈명을 각주로 표기).
+% =====================================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{kotex}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{xcolor}
+
+\newcommand{\src}[1]{{\footnotesize\color{gray}\texttt{#1}}}
+\newcommand{\R}{\mathbb{R}}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+
+\title{\textbf{MOSAIC 산불위험 조기경보 — 사용 수식 정리}\\[4pt]
+\large 전력설비(전주) 산불위험 모델에 쓰인 식과 그 의미}
+\author{이해용 레퍼런스 (코드 \texttt{pfire/} 구현과 1:1 대응)}
+\date{2026-06-20}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+강원 전주 \textbf{138만 개}에 산불 위험/안전$\{0,1\}$을 매기는 문제다. 정답 라벨이
+없으므로(presence-only) 과거 발화점은 \emph{학습 타깃이 아니라 검증·임계값 앵커}로만
+쓴다. 핵심 아이디어는 위험을 \emph{발화}$\times$\emph{확산취약}$\times$\emph{기상}의
+곱으로 분해하고, 각 항을 물리식/지역 혼합전문가로 추정한 뒤, 불확실성(베이지안 사후)과
+커버리지(conformal)를 붙이는 것이다. 이 문서는 그 모든 식을 모듈 순서대로 모아
+\emph{무엇을 왜 그렇게 계산했는지} 한 곳에서 본다.
+\end{abstract}
+
+\tableofcontents
+\vspace{6pt}\hrule
+
+% =====================================================================
+\section{기호 약속}
+% =====================================================================
+\begin{tabular}{ll}
+\toprule
+기호 & 의미 \\
+\midrule
+$p$ & 전주 인덱스 ($N=1{,}387{,}831$) \\
+$t$ & 날짜(산불조심기간 2$\sim$5월) \\
+$r$ & 체제(regime): 영동/영서/산간 \\
+$g(p)$ & 전주 $p$ 가 속한 기상 격자($\sim$13\,km) \\
+$I,S,W\in[0,1]$ & 발화 성향 / 확산·노출 취약 / 기상 위험 \\
+$h,R\in[0,1]$ & 일 위험 / 시즌 위험 \\
+$y_g,\,n_g$ & 지역 $g$ 의 발화수(앵커) / 전주수(노출) \\
+\bottomrule
+\end{tabular}
+
+모든 성분은 $[0,1]$ 로 정규화하고 NaN/범위를 강제 검증한다(\src{hazard.\_validate\_unit}).
+
+% =====================================================================
+\section{위험의 곱셈 분해}
+% =====================================================================
+\src{pfire/hazard.py}
+
+전주 하루치 위험을 세 항의 곱으로 본다:
+\begin{equation}
+h(p,t)\;=\;\underbrace{I(p)}_{\text{발화 성향}}\;\times\;
+\underbrace{S(p)}_{\text{확산·노출 취약}}\;\times\;
+\underbrace{W(g(p),t)}_{\text{그날 기상}}.
+\end{equation}
+
+\textbf{왜 곱인가:} 셋 중 하나라도 0이면 위험 0이라는 \emph{AND} 성격이 물리적으로
+타당하고(불씨가 없거나/탈 게 없거나/날이 궂지 않으면 안 난다), 각 항을 따로 해석해
+``왜 위험한가''를 항목별로 설명할 수 있다.
+
+\textbf{시즌 집계 $R(p)$.} 산불조심기간을 모아 하나의 시즌 위험으로 집계한다.
+\begin{align}
+\text{(MVP, 단일 } W)\quad & R(p)=I(p)\,S(p)\,W(p),\\
+\text{(일별 } T\text{일)}\quad & R(p)=\exp\!\Big(\tfrac{1}{T}\textstyle\sum_{t=1}^{T}
+\log\big[\mathrm{clip}(I\,S\,W_t,\,\varepsilon,1)\big]\Big).
+\end{align}
+일별 경로는 \emph{기하평균}(로그합 평균)이라 단발 고위험일 하나가 시즌 위험을 폭주시키는
+것을 완화한다.
+
+% =====================================================================
+\section{발화 성향 $I(p)$ — 지역 혼합전문가(MoE)}
+% =====================================================================
+\src{pfire/experts.py, pfire/regimes.py}
+
+영동/영서/산간은 발화 메커니즘이 다르다(영동=송전선·양간풍, 영서=도로·입산자,
+산간=연료·산림). 전 지역 단일 모델은 평균에 묻히고, 지역별 개별 모델은 데이터가 쪼개져
+과적합한다. 그 중간(부분 풀링)을 \emph{soft 게이트 혼합전문가}로 구현한다.
+
+\subsection{피처 정규화 (모두 $[0,1]$, 클수록 위험)}
+거리 피처는 \emph{가까울수록 위험}이므로 지수 감쇠로 정규화한다:
+\begin{equation}
+\mathrm{feat}_{\text{dist}}(p)=\exp\!\big(-\,d(p)/\text{scale}\big),\qquad
+\text{scale}=\begin{cases}
+100\,\text{m} & \text{산림}\\
+300\,\text{m} & \text{도로}\\
+1500\,\text{m} & \text{송전선}\\
+3000\,\text{m} & \text{변전소(선택)}
+\end{cases}
+\end{equation}
+나머지: FWI·양간일은 min--max 정규화, 연료는 $\mathrm{clip}(\mu_{\text{flam}},0,1)$,
+토지피복은 도메인 사전치 $\mathrm{lc\_ignition}\in[0,1]$ 조회(산림 1.00, 초지 0.25,
+$\dots$, 수역 0.00).
+
+\subsection{체제 전문가 (같은 피처, 다른 가중)}
+체제 $r$ 전문가는 피처들의 \emph{가중평균}이다(가중합을 가중치합으로 나눠 $[0,1]$ 보장):
+\begin{equation}
+E_r(p)\;=\;\frac{\sum_{k} w_{r,k}\,\mathrm{feat}_k(p)}{\sum_{k} w_{r,k}},\qquad
+k\in\{\text{forest, road, powerline, fwi, yanggan, fuel, landcover}\}.
+\end{equation}
+가중 $w_{r,k}$ 는 공간블록 CV 발화점 recall 을 목적으로 LHS+좌표상승 튜닝했다
+(\src{config.EXPERT\_WEIGHTS}; 예: 영동은 forest 0.33·fuel 0.33, 영서는
+powerline 0.35·forest 0.35).
+
+\subsection{soft 게이트 (체제 가중)}
+게이트 피처 $z_p=(\text{경도, 고도, 양간일})$ 를 z-표준화하고, 체제 앵커 $\mu_r$
+(시군 매핑된 전주들의 표준화 피처 중심)과의 거리로 softmax 한다:
+\begin{equation}
+g_r(p)\;=\;\frac{\exp\!\big(-\lVert z_p-\mu_r\rVert^2/\tau\big)}
+{\sum_{r'}\exp\!\big(-\lVert z_p-\mu_{r'}\rVert^2/\tau\big)},
+\qquad \textstyle\sum_r g_r(p)=1,\quad \tau=0.6.
+\end{equation}
+경계 전주는 자연 블렌딩되고, 소표본 시군도 피처로 안정 배치된다(하드 분할이 아님).
+
+\subsection{MoE 결합}
+\begin{equation}
+\boxed{\,I(p)\;=\;\sum_{r} g_r(p)\,E_r(p)\,}\;\in[0,1].
+\end{equation}
+
+% =====================================================================
+\section{기상 위험 $W$}
+% =====================================================================
+\src{pfire/weather.py}
+
+\subsection{시즌 통계 성분}
+전주 사전계산 통계를 결합(각 min--max 정규화):
+\begin{equation}
+W_{\text{season}}(p)=0.5\,\underbrace{\mathrm{fwi\_q90}}_{\text{강도}}
++0.3\,\underbrace{\mathrm{hdd}}_{\text{고위험일 빈도}}
++0.2\,\underbrace{\mathrm{yanggan}}_{\text{강풍}}.
+\end{equation}
+
+\subsection{일별 ISI/FFMC 동역학 성분}
+관측소별 산불조심기간 일별 분포를 시즌 집계한 뒤 최근접 관측소로 전주에 부여한다.
+\begin{align}
+\text{ISI 성분} &= 0.5\,(\text{고-ISI일수비율}) + 0.25\,(\overline{\text{ISI}})
++ 0.25\,(\text{ISI}_{q90}),\\
+\text{FFMC 성분} &= \text{고-FFMC일수비율},\qquad
+\text{양간 성분}=\mathrm{yanggan\_days},\\
+W_{\text{daily}}(p) &= 0.05\,(\text{ISI 성분}) + 0.75\,(\text{FFMC 성분})
++ 0.20\,(\text{양간 성분}).
+\end{align}
+고-ISI 임계 $10.0$, 고-FFMC 임계 $90.0$(관측소 일별 $q90$ 정합). 발화점 앵커가
+인간발화 위주라 \emph{발화준비(FFMC)}가 본체, \emph{확산준비(ISI)}는 소수 유지.
+
+\subsection{블렌드(기본 $W$)}
+일별만 쓰면 전주를 관측소 시즌집계로 매핑해 \emph{전주고유 극값}(예: 2019 고성 인근)을
+희석한다. 둘을 선형 결합해 극값 보존과 recall 이득을 함께 취한다:
+\begin{equation}
+\boxed{\,W(p)\;=\;w_s\,W_{\text{season}}(p)+(1-w_s)\,W_{\text{daily}}(p)\,},
+\qquad w_s=0.82.
+\end{equation}
+
+% =====================================================================
+\section{확산·노출 취약 $S(p)$}
+% =====================================================================
+\src{pfire/hazard.py (blend\_exposure*)}
+
+정적 $S_{\text{static}}$(사전계산)을 풍하 노출과 \emph{전주별 조건부}로 블렌딩한다.
+전역 균일 희석을 막기 위해 영동·고양간 전주에서만 블렌드 강도를 키운다:
+\begin{align}
+\alpha_p &= \alpha_{\text{base}}\cdot \underbrace{g_{\text{영동}}(p)}_{\text{영동 게이트}}
+\cdot \underbrace{\widehat{\mathrm{yanggan}}(p)}_{\text{양간강도 백분위}}\ \in[0,\alpha_{\text{base}}],\\
+S(p) &= (1-\alpha_p)\,S_{\text{static}}(p) + \alpha_p\,\widetilde{P}_{\text{expo}}(p),
+\end{align}
+여기서 $\widetilde{P}_{\text{expo}}$ 는 노출확률의 순위 백분위(0 다수 분포 강건화).
+
+% =====================================================================
+\section{풍하 노출 — 두 가지 커널}
+% =====================================================================
+
+\subsection{v1: OR 확산 커널 (몬테카를로)}
+\src{pfire/exposure.py, exposure\_engine.py}
+
+발화후보(=$I$ 상위 2\% 전주)에서 바람을 표집해 비등방 확산을 시뮬레이션한다. 시뮬 $s$
+마다 풍하방향 $\theta=\text{풍향}+180^\circ$, 정렬도 $\mathrm{align}=\cos(\angle(\text{방위},\theta))$:
+\begin{align}
+L &= L_0\,\big(1+\alpha\,\max(0,\mathrm{align})\,\tfrac{ws}{5}\big),\quad L_0{=}0.8\text{km},\ \alpha{=}1.5,\\
+\Pr(\text{도달})&=\exp(-d/L)\cdot \mathrm{fuel}\cdot(1+\beta\,\mathrm{southness}),\quad \beta{=}0.3,\\
+P_{\text{expo}}(p)&=\frac{1}{S}\textstyle\sum_{s}\mathbf{1}[\text{어느 발화원이라도 } p \text{ 도달}].
+\end{align}
+\textbf{문제:} 발화원이 조밀한 영동에서 OR 확률이 $P\approx1$ 로 \emph{포화}되어 변별력을
+잃는다 $\Rightarrow$ 아래 v2.2 로 재설계.
+
+\subsection{v2.2: 변별 가능한 발화가중 기대도즈}
+\src{pfire/exposure\_v2.py}
+
+OR(포화) 대신 \emph{누적합}(비포화)으로 바꾸고, Anderson 타원 커널과 격자 국지정규화를
+더한다. 풍속 $\to$ 길이/폭비(LWR):
+\begin{equation}
+U=2.237\,ws\ (\text{mph}),\quad
+\mathrm{LWR}(ws)=\min\!\big(0.936\,e^{0.2566U}+0.461\,e^{-0.1548U}-0.397,\ 8\big).
+\end{equation}
+발화원 $g$ 에 대해 평행/수직거리 $(d_\parallel,d_\perp)$ 로 타원 반경 $r$ 을 만들고,
+풍하($d_\parallel\!\ge\!0$)는 길게·풍상은 짧게 둔다:
+\begin{align}
+L_\parallel &= \begin{cases}\mathrm{LWR}\cdot W_\perp & d_\parallel\ge 0\ (\text{풍하})\\ L_{\text{back}} & d_\parallel<0\ (\text{풍상})\end{cases},
+\qquad W_\perp=0.35,\ L_{\text{back}}=0.35,\\
+r &= \sqrt{(d_\parallel/L_\parallel)^2+(d_\perp/W_\perp)^2},\\[2pt]
+\mathrm{dose}(p) &= \sum_{g} I_g\ \Big\langle e^{-r}\Big\rangle_{\text{바람}}\ \mathrm{fuel}_p\,(1+\beta\,s_p).
+\end{align}
+체제 결합 $\mathrm{dose}=\sum_r g_r\,\mathrm{dose}_r$ 후 \emph{격자 국지정규화}로
+``영동은 다 높음'' 배경을 제거:
+\begin{equation}
+\widetilde{e}(p)=\frac{\mathrm{dose}(p)}{\overline{\mathrm{dose}}_{\,\mathrm{cell}(p)}+\varepsilon},
+\qquad \mathrm{dose01}(p)=\frac{\mathrm{percentile}\big(\widetilde{e}(p)\big)}{100}.
+\end{equation}
+
+\subsection{결정에 결합 (확률 OR)}
+발화 랭킹을 보존하면서 풍하 전주를 상대적으로 끌어올린다:
+\begin{equation}
+\boxed{\,R'(p)=1-\big(1-R(p)\big)\big(1-w\,\mathrm{dose01}(p)\big)\,},\qquad w=0.25\ (\text{보수}).
+\end{equation}
+검증: 영동 변별 IQR $0.166\!\to\!0.290$, 공간CV recall $+0.0071$(5 fold-seed 신호).
+
+% =====================================================================
+\section{지역율 계층 보정 — 경험적 베이즈(EB)}
+% =====================================================================
+\src{pfire/hierarchy.py}
+
+발화점이 희소($\sim$700개)하고 일부 시군은 발화 0$\sim$소수다. 관측율을 그대로 쓰면
+극단 추정으로 과적합하므로, Poisson--Gamma EB 축소로 부모 단계 평균으로 끌어당긴다
+(전역$\to$체제$\to$시군$\to$격자, top-down).
+
+지역 $g$ 의 관측율 $\hat\lambda_g=y_g/n_g$. 부모율 $m$ 과 형제율 분산 $v$ 로 Gamma 사전을
+적률추정($\alpha=m^2/v,\ \beta=m/v$)하면 사후평균은
+\begin{equation}
+\tilde\lambda_g=\frac{y_g+\alpha}{n_g+\beta}
+=w_g\,\hat\lambda_g+(1-w_g)\,m,\qquad w_g=\frac{n_g}{n_g+\beta}.
+\end{equation}
+표본 큰 지역은 관측율에 가깝고($w_g\to1$), 0발화·소표본은 부모율 $m$ 으로 축소된다
+($w_g\to0$). 전주 배율은 격자 EB율을 전역 EB율로 나눈 \emph{상대배율}(전역평균$\approx$1).
+
+% =====================================================================
+\section{불확실성 — 베이지안 사후 + MC 전파}
+% =====================================================================
+\src{pfire/posterior.py}
+
+\subsection{Poisson--Gamma 켤레 사후 (닫힌형)}
+지역 발화수에 켤레 사전을 두면 사후가 닫힌형으로 나온다(MCMC 불필요):
+\begin{equation}
+\lambda_g\,\big|\,y_g\ \sim\ \mathrm{Gamma}\!\big(\alpha_0+y_g,\ \beta_0+n_g\big),
+\quad \mathbb{E}=\tfrac{\alpha}{\beta},\ \mathrm{Var}=\tfrac{\alpha}{\beta^2}.
+\end{equation}
+zero-event 지역은 $\alpha\!\to\!\alpha_0$(부모 수렴)이고 노출 작아 $\beta$ 도 작으므로
+\emph{사후 분산이 커진다}(불확실성 자동 표현).
+
+\subsection{위험 사후예측(몬테카를로)}
+각 draw $r$ 에서 지역율 사후배율 $m^{(r)}$(전역평균$\approx$1)을 물리 base risk 에 곱한다:
+\begin{equation}
+R^{(r)}(p)=\mathrm{clip}\big(R_{\text{base}}(p)\cdot m^{(r)}(p),\,0,1\big),
+\end{equation}
+전주별 평균과 분위로 credible interval $[\,\mathrm{lo}=q_{0.05},\ \mathrm{hi}=q_{0.95}\,]$ 을 낸다.
+(선택) 물리 가중 불확실성은 로그정규 전역인자 $w^{(r)}\!\sim\!\mathrm{LogN}$(평균 1, 변동계수
+$cv$)로 합성한다.
+
+\subsection{BYM2 공간 CAR (INLA식 Laplace 근사)}
+\src{posterior.bym2\_spatial\_posterior}
+
+켤레 사후는 이웃에서 정보를 빌리지 않는다. 이웃 격자 강도를 빌리도록(borrow strength)
+공간 CAR 로 확장한다. 격자 $i$:
+\begin{equation}
+y_i\sim\mathrm{Poisson}\!\big(E_i\,e^{x_i}\big),\quad E_i=n_i\cdot(\text{전역율}),
+\end{equation}
+잠재 로그상대위험 $x$ 의 BYM2 prior 정밀도는 구조(ICAR)와 비구조(iid)의 보간:
+\begin{equation}
+Q_x(\tau,\phi)=\tau\big[(1-\phi)\,I+\phi\,Q_{\text{ICAR}}\big],\quad
+Q_{\text{ICAR}}=D-W+\text{jitter}\cdot I.
+\end{equation}
+각 하이퍼 $(\tau,\phi)$ 에서 음의 로그사후 $f(x)=\sum_i(E_i e^{x_i}-y_i x_i)+\tfrac12 x^\top Q_x x$ 를
+sparse Newton 으로 최소화해 모드 $x^\star$ 와 Hessian $H=\mathrm{diag}(E e^{x})+Q_x$ 를 얻고,
+Laplace 주변우도
+\begin{equation}
+\log p(y\,|\,\tau,\phi)\approx \underbrace{\textstyle\sum_i(y_i x_i^\star-E_i e^{x_i^\star})}_{\text{Poisson loglik}}
++\tfrac12\log|Q_x|-\tfrac12 x^{\star\top}Q_x x^\star-\tfrac12\log|H|
+\end{equation}
+가 최대인 점을 채택한다. 격자 사후는 가우시안 $x_i\sim\mathcal N(x_i^\star,(H^{-1})_{ii})$,
+상대배율은 로그정규 $e^{x_i}$.
+
+% =====================================================================
+\section{임계값·보정·평가}
+% =====================================================================
+\src{pfire/calibrate.py}
+
+presence-only 라 모델은 \emph{순위}만 내고 $0/1$ 컷은 별도로 정한다.
+
+\textbf{recall@top-$k$.} 위험 상위 $k\%$ 가 발화점-전주를 포함하는 비율(분리력 지표).
+
+\textbf{단조 보정(PAVA isotonic).} 발화점=1, 표본 음성=0 으로 두고 위험점수$\to$확률을
+단조(비감소) 회귀로 보정한다(절대확률 아닌 단조 보정값).
+
+\textbf{F1 민감도.} 정답 양성비율 $\rho$ 미지 $\Rightarrow$ 가정별 곡선을 보고한다. 상위
+$\rho$ 분위를 양성으로 두고
+\begin{equation}
+\text{prec}_{\text{proxy}}=\frac{\rho\cdot\text{recall}\cdot N}{n_{\text{pred}}},\quad
+F_1=\frac{2\,\text{prec}_{\text{proxy}}\,\text{recall}}{\text{prec}_{\text{proxy}}+\text{recall}},
+\quad \rho\in\{0.5,1,2,3,5,10\}\%.
+\end{equation}
+
+\textbf{per-regime conformal.} 교환가능 가정만으로 유한표본 커버리지를 보장한다. 체제 $r$
+보정집합(=train fold 발화점에 매핑된 전주)의 위험점수를 오름차순 정렬해
+\begin{equation}
+\tau_r=\mathrm{score}_{(\lfloor\alpha(n_r+1)\rfloor)},\qquad
+\Pr\!\big(\text{새 발화점 위험}\ge\tau_r\big)\gtrsim 1-\alpha,
+\end{equation}
+$\{p:\ \mathrm{risk}(p)\ge\tau_r\}$ 를 위험집합으로 둔다($\alpha=0.10\Rightarrow$ 명목 90\%
+커버리지). 실측: 전체 0.902, 영동 0.907, 영서 0.902, 산간 0.897.
+
+% =====================================================================
+\section{상수 요약}
+% =====================================================================
+\src{pfire/config.py}
+
+\begin{tabular}{lll}
+\toprule
+파라미터 & 값 & 의미 \\
+\midrule
+거리 감쇠 scale & 100/300/1500/3000\,m & 산림/도로/송전선/변전소 \\
+게이트 온도 $\tau$ & 0.6 & 작을수록 하드 게이트 \\
+$W$ 블렌드 $w_s$ & 0.82 & 시즌극값 : 일별동역학 \\
+ISI/FFMC/양간 성분 & 0.05 / 0.75 / 0.20 & 일별 $W$ 결합 \\
+LWR 상한 & 8.0 & Anderson 길이/폭비 cap \\
+$W_\perp,\ L_{\text{back}}$ & 0.35 / 0.35\,km & 횡풍/풍상 스케일 \\
+국지정규화 셀 & 4.0\,km & 영동 배경 제거 \\
+노출 결합 $w$ & 0.25 & $R'=1-(1-R)(1-w\,e)$ \\
+확산 컷오프 & 5.0\,km & 2019 고성 스케일 \\
+conformal $\alpha$ & 0.10 & 명목 90\% 커버리지 \\
+BYM2 $(\tau,\phi)$ 격자 & $\{1{\dots}300\}\times\{0.25{\dots}0.9\}$ & 정밀도·구조비 탐색 \\
+SEED & 20260618 & 전 과정 결정성 \\
+\bottomrule
+\end{tabular}
+
+\vspace{8pt}\hrule\vspace{4pt}
+{\footnotesize 모든 식은 \texttt{pfire/} 모듈 구현과 일치하며, 발화점은 어디서도
+per-pole 학습 라벨이 아니라 \emph{지역 집계 앵커·검증·임계값}으로만 쓰인다(누수 안전).}
+
+\end{document}

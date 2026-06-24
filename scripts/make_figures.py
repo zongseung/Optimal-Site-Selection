@@ -4,7 +4,7 @@
 실행:
     .venv/bin/python scripts/make_figures.py
 
-산출물(9장):
+산출물(10장):
     fig1_risk_map.png       강원 위험지도 (전주 risk_score + 행정경계 + 2019 발화점)
     fig2_regime_alloc.png   체제 지도 + 전역컷 vs 체제별컷 양성분포 편중완화
     fig3_recall_topk.png    recall@top-k 곡선 (전역 vs 체제별 + 랜덤기준선)
@@ -62,7 +62,7 @@ log = logging.getLogger("make_figures")
 
 # 강원 본도(state) 시군 코드는 32xxx. admin csv 엔 인접도(31/33/34/37) 도 섞여 있다.
 GANGWON_SIG_PREFIX = "32"
-# 체제별 색 (영동/영서/산간)
+# 체제별 색 (영동/회랑/영서/산악)
 REGIME_COLORS = {"yeongdong": "#2c7fb8", "corridor": "#253494", "yeongseo": "#7fbc41", "mountain": "#d95f0e"}
 REGIME_KO = {"yeongdong": "영동(해안)", "corridor": "양간지풍 회랑", "yeongseo": "영서(내륙)", "mountain": "산간(고지)"}
 DPI = 300
@@ -249,7 +249,7 @@ def fig1_risk_map(sub: pl.DataFrame, admin_rings, pos: pl.DataFrame):
 # FIG 2 — 체제 지도 + 편중 완화
 # ════════════════════════════════════════════════════════════════════════════
 def fig2_regime_alloc(sub: pl.DataFrame, admin_rings, rj: dict):
-    """영동/영서/산간 색 지도 + 전역컷 vs 체제별컷 양성분포 막대(편중 완화)."""
+    """영동/회랑/영서/산악 색 지도 + 전역컷 vs 체제별컷 양성분포 막대(편중 완화)."""
     fig = plt.figure(figsize=(15, 7.5))
     gs = fig.add_gridspec(1, 2, width_ratios=[1.25, 1.0], wspace=0.22)
 
@@ -563,7 +563,7 @@ def fig6_ignition_decomp():
     import pfire.io as io
 
     master = io.load_master()
-    gate, regime_order = regimes.compute_gate(master)  # (N,3)
+    gate, regime_order = regimes.compute_gate(master)  # (N, R)
     feats = experts.build_ignition_features(master)    # dict key→(N,)
     per_expert = {r: experts.expert_score(feats, r) for r in regime_order}
     expert_mat = np.stack([per_expert[r] for r in regime_order], axis=1)
@@ -925,7 +925,7 @@ def _save(fig, name: str):
 # FIG 11 — 강원 전역 사후 불확실성 지도 (MC credible)  [Phase-5]
 # ════════════════════════════════════════════════════════════════════════════
 def fig11_uncertainty_map(sub: pl.DataFrame, admin_rings, pos: pl.DataFrame):
-    """체제별(영동/영서/산간) 사후 불확실성 서브플롯 — 지역별로 줌해 가시성 확보.
+    """체제별(영동/회랑/영서/산악) 사후 불확실성 서브플롯 — 지역별로 줌해 가시성 확보.
 
     전 강원 한 장(점 138만 겹침)은 가시성이 떨어져, 체제(MoE 지역) 단위로 쪼개 각
     패널을 그 지역 bbox 로 확대한다. fig8(16시군·상대폭)과 달리 여기선 3개 큰 패널로

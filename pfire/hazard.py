@@ -139,11 +139,11 @@ def conditional_alpha(
     """전주별 조건부 풍하노출 블렌드 강도 α_p ∈ [0, α_base].
 
     α_p = α_base × (영동 게이트 가중)_p × (양간강도 정규화)_p.
-    영동·고양간 전주에서만 α_p 가 커지고, 영서/산간·저양간은 ≈0 → 전역 희석 방지.
+    영동·고양간 전주에서만 α_p 가 커지고, 영서·산악·저양간은 ≈0 → 전역 희석 방지.
 
     Parameters
     ----------
-    gate : numpy.ndarray, shape (N, 3)
+    gate : numpy.ndarray, shape (N, R)
         regimes.compute_gate 출력(행합=1).
     regime_order : list[str]
         gate 열 순서(config.REGIMES).

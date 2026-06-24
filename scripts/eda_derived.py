@@ -14,7 +14,7 @@
   1 분포·요약 (퇴화변수 flag)
   2 상관·다중공선성 (히트맵·고상관쌍·VIF)
   3 발화 분리력 (point-biserial·KS·AUC-PR·recall@top-k → 판별력 순위표)
-  4 체제 차이 (영동/영서/산간 분포)
+  4 체제 차이 (영동/회랑/영서/산악 분포)
   5 I·S·W 기여 분해 (무엇이 R 을 지배하나)
   6 공간 자기상관 (Moran's I)
   7 불확실성 진단 (risk_lo/hi·cv·ops_priority)
@@ -102,7 +102,6 @@ PRETTY = {
     "gate_mountain": "게이트_산간",
     "risk_score": "risk_score", "p_exposure": "p_exposure",
     "risk_lo": "risk_lo", "risk_hi": "risk_hi", "ops_priority": "ops_priority",
-    "unc_hi": "unc_hi",
 }
 
 
@@ -141,7 +140,7 @@ def build_frame() -> dict:
 
     # ── (b) 모델 중간변수 재계산 ───────────────────────────────────────────
     log.info("[model] gate / I / per-expert ...")
-    gate, regime_order = regimes.compute_gate(m)            # (N,3)
+    gate, regime_order = regimes.compute_gate(m)            # (N, R)
     I, per_expert = experts.ignition_propensity(m, gate, regime_order)
     feats = experts.build_ignition_features(m)              # I 의 7개 입력 정규화값
 
@@ -159,10 +158,12 @@ def build_frame() -> dict:
     # ── 제출물 컬럼(이미 materialized: 모델 최종산출 single source) ─────────
     sub = None
     if SUBMISSION.exists():
+        # 유효 불확실성 밴드는 risk_lo/risk_hi(사후 credible)만. 구 unc_lo/hi 는 제거됨.
+        _want = ["pole_id", "decision", "risk_score", "regime", "p_exposure",
+                 "risk_lo", "risk_hi", "ops_priority"]
+        _have = pl.read_csv(SUBMISSION, n_rows=0).columns
         sub = pl.read_csv(
-            SUBMISSION,
-            columns=["pole_id", "decision", "risk_score", "regime", "p_exposure",
-                     "risk_lo", "risk_hi", "ops_priority", "unc_lo", "unc_hi"],
+            SUBMISSION, columns=[c for c in _want if c in _have],
         ).sort("pole_id")
         if sub.height != N:
             log.warning("submission 행수 %d != master %d → 제출컬럼 일부 섹션 스킵", sub.height, N)
@@ -217,8 +218,9 @@ def assemble_feature_matrix(D: dict) -> tuple[dict[str, np.ndarray], dict[str, s
     # (b) 제출컬럼
     if D["sub"] is not None:
         s = D["sub"]
-        for c in ["risk_score", "p_exposure", "risk_lo", "risk_hi", "ops_priority", "unc_hi"]:
-            cols[c] = s[c].to_numpy().astype(np.float64); grp[c] = "제출물(b)"
+        for c in ["risk_score", "p_exposure", "risk_lo", "risk_hi", "ops_priority"]:
+            if c in s.columns:
+                cols[c] = s[c].to_numpy().astype(np.float64); grp[c] = "제출물(b)"
     return cols, grp
 
 
@@ -449,7 +451,7 @@ def section3_separability(cols: dict, grp: dict, D: dict) -> dict:
     # 분리력 후보: 위험 방향이 의미있는 파생변수(거리는 부호 반전해 '근접도'로 정렬해도
     # AUC-PR/KS 는 단조변환 불변. point-biserial 은 부호로 방향 표시).
     cand = [n for n in cols if n not in ("R", "risk_score", "p_exposure",
-                                         "risk_lo", "risk_hi", "unc_hi", "ops_priority")
+                                         "risk_lo", "risk_hi", "ops_priority")
             and np.nanstd(cols[n]) > 1e-9]
     rows = []
     for name in cand:
@@ -731,8 +733,16 @@ def section7_uncertainty(cols: dict, D: dict) -> dict:
     lo = s["risk_lo"].to_numpy().astype(np.float64)
     hi = s["risk_hi"].to_numpy().astype(np.float64)
     ops = s["ops_priority"].to_numpy()
-    unc_lo = s["unc_lo"].to_numpy().astype(np.float64)
-    unc_hi = s["unc_hi"].to_numpy().astype(np.float64)
+    # 구 unc_lo/unc_hi 는 제거됨(퇴화 → 권고 반영). 유효 밴드는 risk_lo/risk_hi.
+    has_unc = ("unc_lo" in s.columns) and ("unc_hi" in s.columns)
+    if has_unc:
+        unc_lo = s["unc_lo"].to_numpy().astype(np.float64)
+        unc_hi = s["unc_hi"].to_numpy().astype(np.float64)
+        unc_lo_degenerate = bool(np.std(unc_lo) < 1e-12)
+        unc_hi_range = (float(unc_hi.min()), float(unc_hi.max()))
+    else:
+        unc_lo_degenerate = None      # None = 컬럼 제거됨(더 이상 진단 대상 아님)
+        unc_hi_range = None
     lbl = D["regime_lbl"]
     regimes_kr = {"yeongdong": "영동", "yeongseo": "영서", "mountain": "산간"}
 
@@ -746,9 +756,6 @@ def section7_uncertainty(cols: dict, D: dict) -> dict:
     ops_share = {regimes_kr[r]: float(np.mean(ops[lbl == r])) for r in
                  ("yeongdong", "yeongseo", "mountain")}
     ops_total = int(ops.sum())
-
-    # 진단: unc_lo 퇴화 여부
-    unc_lo_degenerate = bool(np.std(unc_lo) < 1e-12)
 
     # 그림: risk_score vs 밴드폭(샘플)
     N = rs.size
@@ -771,8 +778,9 @@ def section7_uncertainty(cols: dict, D: dict) -> dict:
 
     return dict(rel_by_regime=rel_by_regime, ops_share=ops_share,
                 ops_total=ops_total, unc_lo_degenerate=unc_lo_degenerate,
+                unc_removed=not has_unc,
                 median_relwidth=float(np.median(rel_width)),
-                unc_hi_range=(float(unc_hi.min()), float(unc_hi.max())))
+                unc_hi_range=unc_hi_range)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -942,7 +950,7 @@ def write_report(D, s1, s2, s3, s4, s5, s6, s7, s8):
     md()
 
     # 섹션 4
-    md("## 4. 체제 차이 (영동/영서/산간)")
+    md("## 4. 체제 차이 (영동/회랑/영서/산악)")
     md()
     md("그림: `04_regime_boxplots.png`. 체제=게이트 argmax.")
     md()
@@ -1018,9 +1026,13 @@ def write_report(D, s1, s2, s3, s4, s5, s6, s7, s8):
         md()
         md(f"- 전역 중앙 상대불확실성(밴드폭/risk_score) = {fmt(s7['median_relwidth'],3)}")
         md(f"- `ops_priority` 플래그 총 {s7['ops_total']:,}개")
-        md(f"- `unc_lo` 퇴화(상수)= **{s7['unc_lo_degenerate']}** "
-           f"(True 면 unc_lo 컬럼이 정보가 없음 → 제거 권고)")
-        md(f"- `unc_hi` 범위 = [{fmt(s7['unc_hi_range'][0],3)}, {fmt(s7['unc_hi_range'][1],3)}]")
+        if s7.get("unc_removed"):
+            md("- 구 `unc_lo/unc_hi` 는 제거됨(퇴화) — 유효 불확실성 밴드는 "
+               "`risk_lo`/`risk_hi`(MC 사후 credible) 단일 진실.")
+        else:
+            md(f"- `unc_lo` 퇴화(상수)= **{s7['unc_lo_degenerate']}** "
+               f"(True 면 unc_lo 컬럼이 정보가 없음 → 제거 권고)")
+            md(f"- `unc_hi` 범위 = [{fmt(s7['unc_hi_range'][0],3)}, {fmt(s7['unc_hi_range'][1],3)}]")
         md()
         md("**체제별 중앙 상대불확실성 / ops_priority 비율:**")
         md()
@@ -1126,7 +1138,7 @@ def _write_recommendations(D, s1, s2, s3, s4, s5, s6, s7, s8):
     md()
     moranR = s6["moran"].get("R", s6["moran"].get("risk_score", float("nan")))
     md(f"**⑤ 공간/불확실성/leakage:** R Moran's I={fmt(moranR,2)} (강한 공간자기상관 → 공간CV 필수). ")
-    if not s7.get("skip"):
+    if not s7.get("skip") and not s7.get("unc_removed"):
         md(f"  - `unc_lo` 퇴화={s7['unc_lo_degenerate']} → True 면 컬럼 제거 권고. ")
     md(f"  - 약지도 라벨 누수 점검: 최강 상관 변수가 모델 산출이 아니라면 주의 (표 §8).")
     md()
@@ -1154,7 +1166,7 @@ def _write_recommendations(D, s1, s2, s3, s4, s5, s6, s7, s8):
         recs.append(f"**입력 축소:** VIF>10 변수 {high_vif[:5]}(특히 FWI q90/mean/max 동시 사용)는 "
                     "다중공선성 → 대표 하나만 유지.")
     # (3) unc_lo 퇴화 or 분리력 약함
-    if not s7.get("skip") and s7["unc_lo_degenerate"]:
+    if not s7.get("skip") and s7.get("unc_lo_degenerate"):
         recs.append("**제출물 정리:** `unc_lo` 가 상수(0)라 정보 없음 → 컬럼 제거하거나 실제 하한 "
                     "추정으로 대체(현재 risk_lo/hi 가 유효 밴드이므로 unc_lo/hi 는 중복·혼란 소지).")
     else:
@@ -1202,7 +1214,7 @@ def main() -> int:
     print(f"[영동 상위2% 쏠림] pop={s5['pop_shares']['영동']:.3f} "
           f"top2%={s5['top_shares']['영동']:.3f}")
     print(f"[Moran's I] R={s6['moran'].get('R', float('nan')):.3f}")
-    if not s7.get("skip"):
+    if not s7.get("skip") and not s7.get("unc_removed"):
         print(f"[unc_lo 퇴화] {s7['unc_lo_degenerate']}")
     return 0
 

@@ -101,6 +101,10 @@ def main() -> int:
     ref = config.SUBMISSIONS / "submission.csv"
     if ref.exists():
         sub = pl.read_csv(ref)
+        # 현 파이프라인 메인 제출은 이미 백분위 컬럼을 담는다 → 충돌(_right) 방지로 떨군 뒤
+        # 재계산본으로 갱신한다. (구 unc_lo/unc_hi 는 메인에서 제거됐으므로 자연히 빠진다.)
+        sub = sub.drop([c for c in ("risk_pctile", "risk_pctile_regime")
+                        if c in sub.columns])
         pdf = pl.DataFrame({"pole_id": pole_id,
                             "risk_pctile": np.round(pct, 2),
                             "risk_pctile_regime": np.round(pct_reg, 2)})

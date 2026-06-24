@@ -66,7 +66,7 @@ def _build_shared() -> dict[str, object]:
     master = io.load_master()
     positives = io.load_positives()
     pole_xy = master.select(["lon", "lat"]).to_numpy().astype(np.float64)
-    gate, regime_order = regimes.compute_gate(master)  # (N,3)
+    gate, regime_order = regimes.compute_gate(master)  # (N, R)
     feats = experts.build_ignition_features(master)
     feat_mat = np.stack([feats[k] for k in FEAT_KEYS], axis=1)  # (N, N_FEATS)
     W = weather.season_weather(master, source="features")       # (N,)
@@ -84,14 +84,14 @@ def _build_shared() -> dict[str, object]:
 
 
 def _risk_from_weights(w: np.ndarray, shared: dict[str, object]) -> np.ndarray:
-    """가중 행렬 w (3, N_FEATS, 행=체제 simplex) → R(p)=I×S×W.
+    """가중 행렬 w (R, N_FEATS, 행=체제 simplex) → R(p)=I×S×W.
 
     I = Σ_r gate[:,r]·expert_r, expert_r = Σ_j w[r,j]·feat_j (행합=1 이므로
     expert ∈[0,1]). gate 행합=1 → I∈[0,1].
     """
-    gate = shared["gate"]            # (N,3)
+    gate = shared["gate"]            # (N, R)
     feat_mat = shared["feat_mat"]    # (N, N_FEATS)
-    experts_mat = feat_mat @ w.T     # (N,3) 각 체제 전문가 점수
+    experts_mat = feat_mat @ w.T     # (N, R) 각 체제 전문가 점수
     I = np.einsum("nr,nr->n", gate, experts_mat)  # (N,)
     I = np.clip(I, 0.0, 1.0)
     R = I * shared["S"] * shared["W"]
@@ -149,7 +149,7 @@ def _quantize(w: np.ndarray, step: float = 0.05) -> np.ndarray:
     """simplex 가중을 step 격자로 양자화 후 재정규화(미세과적합 회피·해석성).
 
     마지막 축(=전문가 N_FEATS 항)이 simplex 라고 보고 그 축으로 정규화한다.
-    (3D (M,3,F) / 2D (3,F) / 1D (F,) 모두 last-axis 정규화로 동작.)
+    (3D (M,R,F) / 2D (R,F) / 1D (F,) 모두 last-axis 정규화로 동작.)
     """
     q = np.round(w / step) * step
     q = np.clip(q, 0.0, None)
@@ -172,7 +172,7 @@ def _worker_eval(w_flat: np.ndarray) -> float:
 
 def _eval_batch(cands: np.ndarray, shared: dict[str, object],
                 workers: int) -> np.ndarray:
-    """후보 배열(M, 3, N_FEATS) 병렬 평가 → score (M,)."""
+    """후보 배열(M, R, N_FEATS) 병렬 평가 → score (M,)."""
     flat = cands.reshape(cands.shape[0], -1)
     if workers <= 1:
         _G.update(shared)

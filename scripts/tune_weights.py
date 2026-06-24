@@ -77,6 +77,9 @@ def _build_shared() -> dict[str, object]:
     return dict(
         gate=gate, regime_order=list(regime_order), feat_mat=feat_mat,
         W=W, S=S, f2p=f2p, blocks=blocks, pole_xy=pole_xy,
+        regime_lbl=gate.argmax(axis=1).astype(np.int32),  # 전주 우세체제 idx
+        n_reg=len(regime_order),
+        within_regime=False,  # main 에서 --within-regime 시 True 로 덮어씀
     )
 
 
@@ -96,11 +99,30 @@ def _risk_from_weights(w: np.ndarray, shared: dict[str, object]) -> np.ndarray:
 
 
 def _objective(w: np.ndarray, shared: dict[str, object]) -> dict[str, float]:
-    """공간CV recall 가중평균(목적값) + 각 top-k recall 반환."""
+    """공간CV recall 가중평균(목적값) + 각 top-k recall 반환.
+
+    within_regime=True 면 레짐별 within recall(각 레짐 안에서 top-k% 가 그 레짐
+    발화점을 회수)의 **동일가중 평균**을 목적으로 한다 → between-regime 기저율
+    지름길을 제거하고 within 판별을 직접 최적화(레짐 크기 무관 동일 비중).
+    """
     R = _risk_from_weights(w, shared)
-    cv = validate.spatial_cv_recall(R, shared["f2p"], shared["blocks"],
-                                    ks=tuple(OBJ_W.keys()))
+    ks = tuple(OBJ_W.keys())
     wsum = sum(OBJ_W.values())
+    if shared.get("within_regime"):
+        regime_lbl = shared["regime_lbl"]
+        per_k = {k: [] for k in OBJ_W}
+        for r in range(int(shared["n_reg"])):
+            mask = regime_lbl == r
+            cv = validate.spatial_cv_recall(R, shared["f2p"], shared["blocks"],
+                                            ks=ks, subset_mask=mask)
+            for k in OBJ_W:
+                m = cv[k]["mean"]
+                per_k[k].append(0.0 if (m != m) else m)  # NaN(발화無) → 0(보수)
+        out = {f"recall@{k}": float(np.mean(per_k[k])) for k in OBJ_W}
+        score = sum(OBJ_W[k] * np.mean(per_k[k]) for k in OBJ_W) / wsum
+        out["score"] = float(score)
+        return out
+    cv = validate.spatial_cv_recall(R, shared["f2p"], shared["blocks"], ks=ks)
     score = sum(OBJ_W[k] * cv[k]["mean"] for k in OBJ_W) / wsum
     out = {f"recall@{k}": cv[k]["mean"] for k in OBJ_W}
     out["score"] = float(score)
@@ -142,8 +164,9 @@ def _worker_init(shared: dict[str, object]) -> None:
 
 
 def _worker_eval(w_flat: np.ndarray) -> float:
-    """후보 1개 평가(워커). w_flat=(3*N_FEATS,) → (3, N_FEATS)."""
-    w = w_flat.reshape(3, N_FEATS)
+    """후보 1개 평가(워커). w_flat=(n_reg*N_FEATS,) → (n_reg, N_FEATS)."""
+    n_reg = len(_G["regime_order"])
+    w = w_flat.reshape(n_reg, N_FEATS)
     return _objective(w, _G)["score"]
 
 
@@ -175,7 +198,7 @@ def _coordinate_ascent(w0: np.ndarray, shared: dict[str, object],
         improved = False
         cands: list[np.ndarray] = []
         meta: list[tuple[int, int, float]] = []
-        for r in range(3):
+        for r in range(w.shape[0]):
             for j in range(N_FEATS):
                 for delta in (step, -step):
                     cand = w.copy()
@@ -214,6 +237,8 @@ def main() -> int:
     ap.add_argument("--ca-passes", type=int, default=2, help="좌표상승 패스")
     ap.add_argument("--quant-step", type=float, default=0.05,
                     help="simplex 양자화 격자(해석성·미세과적합 회피)")
+    ap.add_argument("--within-regime", action="store_true",
+                    help="목적함수를 레짐별 within recall 동일가중 평균으로(between 지름길 제거)")
     args = ap.parse_args()
 
     np.random.seed(config.SEED)
@@ -222,7 +247,9 @@ def main() -> int:
     logger.info("=== 공유 상태 준비 ===")
     t0 = time.time()
     shared = _build_shared()
-    logger.info("준비 %.1fs", time.time() - t0)
+    shared["within_regime"] = bool(args.within_regime)
+    logger.info("준비 %.1fs | 목적함수=%s", time.time() - t0,
+                "within-regime(레짐별 동일가중)" if args.within_regime else "global recall")
 
     # 0) baseline (현 config) 평가
     w_init = np.array([[config.EXPERT_WEIGHTS[r][k] for k in FEAT_KEYS]
@@ -236,10 +263,9 @@ def main() -> int:
     # 1) 랜덤/LHS 탐색 — 체제별 독립 simplex 표집 후 결합
     logger.info("=== 랜덤/LHS 탐색 N=%d ===", args.n_random)
     n = args.n_random
-    s_yd = _sample_simplex_lhs(rng, n, N_FEATS)
-    s_ys = _sample_simplex_lhs(rng, n, N_FEATS)
-    s_mt = _sample_simplex_lhs(rng, n, N_FEATS)
-    cands = np.stack([s_yd, s_ys, s_mt], axis=1)  # (n,3,N_FEATS)
+    n_reg = len(shared["regime_order"])
+    # 체제별 독립 simplex 표집 후 결합 (n, n_reg, N_FEATS) — 레짐 수 일반화(4레짐 회랑 포함).
+    cands = np.stack([_sample_simplex_lhs(rng, n, N_FEATS) for _ in range(n_reg)], axis=1)
     cands = _quantize(cands, step=args.quant_step)
     t1 = time.time()
     scores = _eval_batch(cands, shared, args.workers)
@@ -338,7 +364,8 @@ def main() -> int:
         "weights_tuned": tuned_dict,
     }
     config.OUT.mkdir(parents=True, exist_ok=True)
-    path = config.OUT / "tuned_weights.json"
+    fname = "tuned_weights_within.json" if args.within_regime else "tuned_weights.json"
+    path = config.OUT / fname
     path.write_text(json.dumps(out, ensure_ascii=False, indent=2))
     logger.info("튜닝 가중 기록: %s", path)
     logger.info("=== 완료 === before=%.5f after=%.5f", base["score"], final["score"])

@@ -12,6 +12,8 @@ import logging
 
 import numpy as np
 
+from pfire import config
+
 logger = logging.getLogger(__name__)
 
 
@@ -172,8 +174,10 @@ def conditional_alpha(
         raise ValueError("yanggan_days 와 gate 행수 불일치")
     if yeongdong_regime not in regime_order:
         raise KeyError(f"regime_order 에 영동 체제 없음: {yeongdong_regime}")
-    yd_col = regime_order.index(yeongdong_regime)
-    yd_gate = np.clip(gate[:, yd_col], 0.0, 1.0)          # 영동 게이트 [0,1]
+    # 풍하노출은 wind-driven 체제(영동+회랑) 모두에 적용 → 해당 게이트 가중 합산.
+    foehn_cols = [regime_order.index(r) for r in config.FOEHN_REGIMES
+                  if r in regime_order]
+    yd_gate = np.clip(gate[:, foehn_cols].sum(axis=1), 0.0, 1.0)   # 영동+회랑 게이트 [0,1]
     yang_norm = _percentile_norm(yanggan_days)            # 양간강도 [0,1]
     alpha_p = alpha_base * yd_gate * yang_norm
     return np.clip(alpha_p, 0.0, alpha_base)

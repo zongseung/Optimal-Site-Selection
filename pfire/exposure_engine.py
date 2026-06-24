@@ -152,8 +152,8 @@ def sample_wind(regime: str, n_sims: int,
                 seed: int = config.SEED) -> tuple[np.ndarray, np.ndarray]:
     """체제별 MC 풍향·풍속 표집.
 
-    영동(yeongdong)은 양간지풍 prior(서풍 ≈270°±좁게)로 풍향 표집, 그 외는
-    관측 풍향 분포(또는 넓은 표집). 풍속은 산불조심기간 관측 분포에서 표집.
+    영동·회랑(config.FOEHN_REGIMES)은 양간지풍 prior(서풍 ≈270°±좁게)로 풍향 표집,
+    그 외는 관측 풍향 분포(또는 넓은 표집). 풍속은 산불조심기간 관측 분포에서 표집.
 
     Parameters
     ----------
@@ -176,7 +176,7 @@ def sample_wind(regime: str, n_sims: int,
         풍속(m/s).
     """
     rng = np.random.default_rng(seed + _regime_seed_offset(regime))
-    if regime == config.REGIME_YEONGDONG:
+    if regime in config.FOEHN_REGIMES:
         wd = (rng.normal(YANGGAN_DIR_MEAN_DEG, YANGGAN_DIR_STD_DEG, n_sims)) % 360.0
     else:
         wd = _season_wind_dir(aws_daily, n_sims, rng)

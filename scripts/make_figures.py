@@ -63,8 +63,8 @@ log = logging.getLogger("make_figures")
 # 강원 본도(state) 시군 코드는 32xxx. admin csv 엔 인접도(31/33/34/37) 도 섞여 있다.
 GANGWON_SIG_PREFIX = "32"
 # 체제별 색 (영동/영서/산간)
-REGIME_COLORS = {"yeongdong": "#2c7fb8", "yeongseo": "#7fbc41", "mountain": "#d95f0e"}
-REGIME_KO = {"yeongdong": "영동(해안)", "yeongseo": "영서(내륙)", "mountain": "산간(고지)"}
+REGIME_COLORS = {"yeongdong": "#2c7fb8", "corridor": "#253494", "yeongseo": "#7fbc41", "mountain": "#d95f0e"}
+REGIME_KO = {"yeongdong": "영동(해안)", "corridor": "양간지풍 회랑", "yeongseo": "영서(내륙)", "mountain": "산간(고지)"}
 DPI = 300
 
 
@@ -663,7 +663,7 @@ def fig6_ignition_decomp():
 # ════════════════════════════════════════════════════════════════════════════
 def _sgg_order() -> list[str]:
     """시군을 체제(영동→영서→산간)·이름 순으로 정렬한 리스트."""
-    reg_rank = {"yeongdong": 0, "yeongseo": 1, "mountain": 2}
+    reg_rank = {"yeongdong": 0, "corridor": 1, "yeongseo": 2, "mountain": 3}
     return sorted(SGG_TO_REGIME.keys(),
                   key=lambda s: (reg_rank.get(SGG_TO_REGIME[s], 9), s))
 
@@ -868,7 +868,7 @@ def fig10_bym_vs_pg(rj: dict):
         return
     rows = cmp["sgg"]
     # 체제·이름 순 정렬로 보기 좋게.
-    reg_rank = {"yeongdong": 0, "yeongseo": 1, "mountain": 2}
+    reg_rank = {"yeongdong": 0, "corridor": 1, "yeongseo": 2, "mountain": 3}
     rows = sorted(rows, key=lambda r: (reg_rank.get(SGG_TO_REGIME.get(r["sgg"], "?"), 9),
                                        r["sgg"]))
     sggs = [r["sgg"] for r in rows]
@@ -918,6 +918,100 @@ def _save(fig, name: str):
     log.info("저장: %s", path)
 
 
+# ════════════════════════════════════════════════════════════════════════════
+# FIG 11 — 강원 전역 사후 불확실성 지도 (MC credible)  [Phase-5]
+# ════════════════════════════════════════════════════════════════════════════
+def fig11_uncertainty_map(sub: pl.DataFrame, admin_rings, pos: pl.DataFrame):
+    """체제별(영동/영서/산간) 사후 불확실성 서브플롯 — 지역별로 줌해 가시성 확보.
+
+    전 강원 한 장(점 138만 겹침)은 가시성이 떨어져, 체제(MoE 지역) 단위로 쪼개 각
+    패널을 그 지역 bbox 로 확대한다. fig8(16시군·상대폭)과 달리 여기선 3개 큰 패널로
+    절대 신뢰폭과 '현장확인 우선'을 본다.
+      상단: 절대 사후폭 (risk_hi − risk_lo) — 위험 추정의 ± 신뢰폭(체제 간 vmax 공유).
+      하단: 위험 상위(상위 10%) ∩ 상대 불확실 상위(상위 20%) = 현장확인·능동라벨 우선
+            전주 강조 + 그 지역 발화점★.
+    risk_lo/risk_hi 는 posterior.propagate_risk_posterior 의 MC 사후예측 분위(기본 90%).
+    """
+    if "risk_lo" not in sub.columns or "risk_hi" not in sub.columns:
+        log.warning("risk_lo/risk_hi 없음 — fig11(불확실성 지도) 생략. posterior 경로로 재생성 필요.")
+        return
+    if "regime" not in sub.columns:
+        log.warning("regime 열 없음 — fig11 체제별 서브플롯 생략.")
+        return
+
+    lon = sub["lon"].to_numpy()
+    lat = sub["lat"].to_numpy()
+    reg = sub["regime"].to_numpy().astype(str)
+    lo = sub["risk_lo"].to_numpy()
+    hi = sub["risk_hi"].to_numpy()
+    abs_w = np.clip(hi - lo, 0.0, None)
+    mid = 0.5 * (lo + hi)                       # 사후평균 프록시(risk_mean 미동봉 시)
+    rel_w = abs_w / np.maximum(mid, 1e-9)       # 상대 불확실성(cv 유사)
+    if "risk_pctile" in sub.columns:
+        risk_pct = sub["risk_pctile"].to_numpy()
+    else:
+        rs = sub["risk_score"].to_numpy()
+        risk_pct = 100.0 * (np.argsort(np.argsort(rs)) / max(len(rs) - 1, 1))
+
+    # 체제 간 비교 가능하도록 공통 척도.
+    vmax = float(np.quantile(abs_w, 0.999))
+    rel_thr = float(np.quantile(rel_w, 0.80))   # '불확실 상위 20%' 전역 임계
+    fx = pos["lon"].to_numpy() if pos.height else np.empty(0)
+    fy = pos["lat"].to_numpy() if pos.height else np.empty(0)
+
+    order_reg = ["yeongdong", "yeongseo", "mountain"]
+    fig, axes = plt.subplots(2, 3, figsize=(16, 10))
+    sc = None
+    for j, rk in enumerate(order_reg):
+        m = reg == rk
+        if not m.any():
+            continue
+        x, y = lon[m], lat[m]
+        padx = 0.03 * (x.max() - x.min() + 1e-6)
+        pady = 0.03 * (y.max() - y.min() + 1e-6)
+        xlim = (x.min() - padx, x.max() + padx)
+        ylim = (y.min() - pady, y.max() + pady)
+        fin = (fx >= xlim[0]) & (fx <= xlim[1]) & (fy >= ylim[0]) & (fy <= ylim[1])
+
+        # ── 상단: 절대 사후폭 ──
+        ax = axes[0, j]
+        o = np.argsort(abs_w[m])                # 좁은 폭 먼저 → 넓은(불확실) 폭 위로
+        sc = ax.scatter(x[o], y[o], c=abs_w[m][o], s=1.4, cmap="viridis",
+                        vmin=0.0, vmax=vmax, rasterized=True, zorder=1)
+        _draw_admin(ax, admin_rings)
+        ax.set_xlim(*xlim); ax.set_ylim(*ylim)
+        ax.set_title(f"{REGIME_KO.get(rk, rk)} — 사후 신뢰폭", fontsize=12, fontweight="bold")
+        ax.set_xlabel("경도 (°E)"); ax.set_ylabel("위도 (°N)")
+
+        # ── 하단: 현장확인 우선 ──
+        ax = axes[1, j]
+        pri = m & (risk_pct >= 90.0) & (rel_w >= rel_thr)
+        oth = m & ~pri
+        ax.scatter(lon[oth], lat[oth], s=0.8, c="#cfd8dc", rasterized=True,
+                   zorder=1, label="기타 전주")
+        ax.scatter(lon[pri], lat[pri], s=2.2, c="#6a1b9a", rasterized=True,
+                   zorder=3, label=f"현장확인 우선 {int(pri.sum()):,}개")
+        _draw_admin(ax, admin_rings)
+        if fin.any():
+            ax.scatter(fx[fin], fy[fin], marker="*", s=60, c="#1a1a1a",
+                       edgecolors="white", linewidths=0.4, zorder=5,
+                       label=f"발화점 {int(fin.sum())}건")
+        ax.set_xlim(*xlim); ax.set_ylim(*ylim)
+        ax.set_title(f"{REGIME_KO.get(rk, rk)} — 위험∩불확실(현장확인 우선)",
+                     fontsize=12, fontweight="bold")
+        ax.set_xlabel("경도 (°E)"); ax.set_ylabel("위도 (°N)")
+        ax.legend(loc="lower right", fontsize=7.5, framealpha=0.9, markerscale=3)
+
+    if sc is not None:
+        cb = fig.colorbar(sc, ax=axes[0, :].tolist(), fraction=0.025, pad=0.02)
+        cb.set_label("사후 신뢰폭  risk_hi - risk_lo  (90% credible)", fontsize=10)
+
+    fig.suptitle("그림 11. 체제별 사후 불확실성 (MC 베이지안 credible) — 상단 신뢰폭 · 하단 현장확인 우선",
+                 fontsize=14, fontweight="bold", y=0.995)
+    fig.tight_layout(rect=(0, 0, 1, 0.97))
+    _save(fig, "fig11_uncertainty_map.png")
+
+
 # ──────────────────────────────────────────── main ─────────────────────────
 def main():
     OUT_FIG.mkdir(parents=True, exist_ok=True)
@@ -954,6 +1048,8 @@ def main():
     fig7_sgg_risk_subplots(sub, sgg_of_pole)
     log.info("=== fig8 시군 불확실성 서브플롯 ===")
     fig8_sgg_uncertainty_subplots(sub, sgg_of_pole)
+    log.info("=== fig11 강원 전역 불확실성 지도 ===")
+    fig11_uncertainty_map(sub, admin_rings, pos)
     log.info("=== fig9 체제별 커버리지 ===")
     fig9_coverage(rj)
     log.info("=== fig10 BYM2 vs Poisson-Gamma(공간 borrow) ===")

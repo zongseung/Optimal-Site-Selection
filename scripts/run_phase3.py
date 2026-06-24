@@ -53,6 +53,9 @@ logger = logging.getLogger("run_phase3")
 PHASE2_WEIGHTS_6 = {
     config.REGIME_YEONGDONG: dict(forest=0.3509, road=0.0000, powerline=0.1003,
                                   fwi=0.0977, yanggan=0.0501, fuel=0.4010, landcover=0.0000),
+    # 회랑: Phase2 당시 비분리(영동에 포함) → "before" baseline은 영동값 사용(비교 기준).
+    config.REGIME_CORRIDOR:  dict(forest=0.3509, road=0.0000, powerline=0.1003,
+                                  fwi=0.0977, yanggan=0.0501, fuel=0.4010, landcover=0.0000),
     config.REGIME_YEONGSEO:  dict(forest=0.3684, road=0.2105, powerline=0.3684,
                                   fwi=0.0000, yanggan=0.0526, fuel=0.0000, landcover=0.0000),
     config.REGIME_MOUNTAIN:  dict(forest=0.0000, road=0.1579, powerline=0.4737,
@@ -217,14 +220,14 @@ def main() -> int:
 
     logger.info("=== 12. 제출 CSV 작성 ===")
     regime_lbl = np.array(regime_order)[gate.argmax(axis=1)]
-    unc = _uncertainty_band(master, p_cal)
+    # 불확실성 밴드는 베이지안 사후(risk_lo/hi)만 동봉한다 — 이 Phase-3 러너는 사후를
+    # 돌리지 않으므로 밴드 없이 결정만 낸다(구 unc_lo/hi 휴리스틱은 퇴화로 제거).
     sub = submit.build_submission(
         pole_id=master["pole_id"].to_numpy(),
         lon=pole_xy[:, 0], lat=pole_xy[:, 1],
         decision=decision, risk_score=p_cal,
         regime=regime_lbl,
         p_exposure=p_exposure if p_exposure is not None else None,
-        unc_lo=unc[0], unc_hi=unc[1],
     )
     path = submit.write_submission(sub, name="submission.csv")
 
@@ -233,18 +236,6 @@ def main() -> int:
                 path, sub.height, int(sub["decision"].sum()),
                 100.0 * sub["decision"].mean(), adopted_alpha)
     return 0
-
-
-def _uncertainty_band(master, p_cal: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """관측외삽(extrap_flag)·관측소 거리로 단순 불확실성 밴드(해석용)."""
-    nn_km = master["nn_station_km"].to_numpy().astype(np.float64)
-    extrap = (master["extrap_flag"].to_numpy().astype(np.float64)
-              if "extrap_flag" in master.columns else np.zeros(len(p_cal)))
-    nn_norm = np.clip(nn_km / (np.nanmax(nn_km) + 1e-9), 0, 1)
-    width = 0.05 + 0.15 * nn_norm + 0.10 * extrap
-    lo = np.clip(p_cal - width, 0.0, 1.0)
-    hi = np.clip(p_cal + width, 0.0, 1.0)
-    return lo, hi
 
 
 if __name__ == "__main__":

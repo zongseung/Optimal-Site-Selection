@@ -12,3 +12,5 @@ __pycache__/
 /outputs/submissions/*.csv
 
 .env
+# 리서치 메모(작업용, 추적 제외)
+/claudedocs/

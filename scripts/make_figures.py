@@ -198,22 +198,23 @@ def fig1_risk_map(sub: pl.DataFrame, admin_rings, pos: pl.DataFrame):
 
     lon = sub["lon"].to_numpy()
     lat = sub["lat"].to_numpy()
-    risk = sub["risk_score"].to_numpy()
+    # risk_score(단조보정 확률)는 희소발화로 계단붕괴(고유값 66개)라 시각화 부적합 →
+    # R 기반 위험 백분위(risk_pctile, 균일 0~100)로 색칠해 위험 그라데이션을 보존.
+    risk = sub["risk_pctile"].to_numpy()
     decision = sub["decision"].to_numpy()
 
-    # ── (a) risk_score 연속 히트 ──
+    # ── (a) 위험 백분위 연속 히트 ──
     ax = axes[0]
-    # 가독성: risk_score 분위로 색을 강조 (상위가 잘 보이게 sqrt 스케일)
     order = np.argsort(risk)  # 낮은값 먼저 그려 위험이 위로
     sc = ax.scatter(
         lon[order], lat[order], c=risk[order], s=0.6,
-        cmap="YlOrRd", vmin=0.0, vmax=np.quantile(risk, 0.999),
+        cmap="YlOrRd", vmin=0.0, vmax=100.0,
         rasterized=True, zorder=1,
     )
     _draw_admin(ax, admin_rings)
     cb = fig.colorbar(sc, ax=ax, fraction=0.04, pad=0.02)
-    cb.set_label("위험 점수 risk_score (단조보정)", fontsize=10)
-    ax.set_title("(a) 위험 점수", fontsize=13, fontweight="bold")
+    cb.set_label("위험 백분위 (0~100)", fontsize=10)
+    ax.set_title("(a) 위험 백분위", fontsize=13, fontweight="bold")
     ax.set_xlabel("경도 (°E)")
     ax.set_ylabel("위도 (°N)")
 
@@ -464,7 +465,8 @@ def fig5_goseong(sub: pl.DataFrame, pos: pl.DataFrame):
     s_lon = lon[m]
     s_lat = lat[m]
     s_dec = sub["decision"].to_numpy()[m]
-    s_risk = sub["risk_score"].to_numpy()[m]
+    # risk_score(단조보정)는 계단붕괴라 risk_pctile(R 기반, 균일)로 색칠.
+    s_risk = sub["risk_pctile"].to_numpy()[m]
 
     fig, ax = plt.subplots(figsize=(12, 7.5))
 
@@ -486,7 +488,7 @@ def fig5_goseong(sub: pl.DataFrame, pos: pl.DataFrame):
                     cmap="YlOrRd", vmin=vmin, vmax=vmax, zorder=3,
                     alpha=0.75, edgecolors="none", rasterized=True)
     cb = fig.colorbar(sc, ax=ax, fraction=0.035, pad=0.02)
-    cb.set_label("전주 위험 점수 risk_score (국지 스케일)", fontsize=10)
+    cb.set_label("전주 위험 백분위 risk_pctile (국지 스케일)", fontsize=10)
     # decision=1 위험 전주는 테두리 강조
     risky = s_dec == 1
     if risky.sum():
@@ -681,7 +683,8 @@ def fig7_sgg_risk_subplots(sub: pl.DataFrame, sgg_of_pole: np.ndarray):
     """
     lon = sub["lon"].to_numpy()
     lat = sub["lat"].to_numpy()
-    risk = (sub["risk_mean"].to_numpy() if "risk_mean" in sub.columns
+    # risk_score(단조보정)는 계단붕괴 → risk_pctile(R 기반, 균일) 우선.
+    risk = (sub["risk_pctile"].to_numpy() if "risk_pctile" in sub.columns
             else sub["risk_score"].to_numpy())
     vmax = float(np.quantile(risk, 0.995))
     sgg_rings = load_admin_polygons_by_sgg()

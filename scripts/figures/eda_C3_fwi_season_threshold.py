@@ -88,16 +88,15 @@ def main() -> None:
                 fontsize=9.0, color="#222",
                 bbox=dict(boxstyle="round", fc="white", ec=color, alpha=0.9))
 
-        ax.set_title(f"{label} — 일별 분포", fontsize=11)
+        ax.set_title(label, fontsize=11)
         ax.set_xlabel(col.upper() + (f"  ({xcap:.0f} 초과는 우측 끝에 합산)" if xcap else ""))
         ax.set_ylabel("밀도")
         ax.legend(loc="upper right" if boxloc == "left" else "upper center",
                   fontsize=8.5)
 
     fig.suptitle(
-        "기상 시간 집계 근거 — 일별 FWI 지표를 산불조심기간(2~5월) 시즌 통계로 집계\n"
-        "(평균·90분위수·고위험일수 비율; 임계 ISI 10·FFMC 90 ≈ 관측소 일별 q90)",
-        fontsize=11.5, y=1.04,
+        "산불조심기간(2~5월) 일별 ISI·FFMC 분포",
+        fontsize=12.5, y=1.02,
     )
     out = FIG_DIR / "eda_C3_fwi_season_threshold.png"
     fig.savefig(out)

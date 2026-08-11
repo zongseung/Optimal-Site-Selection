@@ -1,5 +1,10 @@
 # MOSAIC — Wildfire Risk Analysis for Power Distribution Poles
 
+[![Contest](https://img.shields.io/badge/2026_Weather_Big_Data_Contest-Topic_1_Disaster_Safety-1f6feb)](https://bd.kma.go.kr)
+[![Award](https://img.shields.io/badge/🏆_3rd_Prize-KEPCO_President's_Award-FFD700)](https://www.kepco.co.kr)
+
+English | **[한국어](README.ko.md)**
+
 > **🏆 3rd Prize — KEPCO President's Award (한국전력사장상)**
 > **2026 Weather Big Data Contest · Topic 1 (Disaster Safety)**
 > Hosted by the **Korea Meteorological Administration (KMA)** · Partner institution **Korea Electric Power Corporation (KEPCO)**

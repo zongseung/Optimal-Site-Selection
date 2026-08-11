@@ -1,0 +1,71 @@
+{
+  "adopted_R": "R_mult(I·S·W×배율)",
+  "reproduction_agreement": 0.8816599427451901,
+  "rows": [
+    {
+      "prevalence": 0.05,
+      "n_positive": 69392,
+      "threshold": 0.19963921282912817,
+      "recall": 0.11094890510948906,
+      "f1_proxy": 0.11094854536218976,
+      "recall_lift": 2.218978102189781,
+      "regime": {
+        "yeongdong": 61043,
+        "yeongseo": 4935,
+        "mountain": 3414
+      }
+    },
+    {
+      "prevalence": 0.075,
+      "n_positive": 104088,
+      "threshold": 0.16113126614417625,
+      "recall": 0.1591240875912409,
+      "f1_proxy": 0.1591235716378774,
+      "recall_lift": 2.121654501216545,
+      "regime": {
+        "yeongdong": 85587,
+        "yeongseo": 12909,
+        "mountain": 5592
+      }
+    },
+    {
+      "prevalence": 0.1,
+      "n_positive": 138784,
+      "threshold": 0.13785573291257347,
+      "recall": 0.20437956204379562,
+      "f1_proxy": 0.2043788993514022,
+      "recall_lift": 2.043795620437956,
+      "regime": {
+        "yeongdong": 105882,
+        "yeongseo": 24916,
+        "mountain": 7986
+      }
+    },
+    {
+      "prevalence": 0.125,
+      "n_positive": 173479,
+      "threshold": 0.12231867112371103,
+      "recall": 0.25401459854014596,
+      "f1_proxy": 0.25401450702521833,
+      "recall_lift": 2.0321167883211677,
+      "regime": {
+        "yeongdong": 123589,
+        "yeongseo": 39371,
+        "mountain": 10519
+      }
+    },
+    {
+      "prevalence": 0.15,
+      "n_positive": 208175,
+      "threshold": 0.11061536339975221,
+      "recall": 0.29781021897810217,
+      "f1_proxy": 0.2978099686270411,
+      "recall_lift": 1.9854014598540146,
+      "regime": {
+        "yeongdong": 139409,
+        "yeongseo": 55480,
+        "mountain": 13286
+      }
+    }
+  ]
+}

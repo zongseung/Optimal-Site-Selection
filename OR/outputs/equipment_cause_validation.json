@@ -1,0 +1,334 @@
+{
+  "meta": {
+    "n_fires": 928,
+    "radius_km": 1.0,
+    "bootstrap_B": 2000,
+    "seed": 20260618,
+    "ks": [
+      0.01,
+      0.02,
+      0.05,
+      0.1
+    ],
+    "honest_note": "grid_electric n is tiny (~18). pooled recall has no train/test split — interpret RELATIVELY (grid vs human; later aware vs blind), NOT as absolute performance. n is reported everywhere."
+  },
+  "counts": {
+    "grid_electric": {
+      "n_fires": 24,
+      "n_mapped": 18
+    },
+    "human": {
+      "n_fires": 624,
+      "n_mapped": 476
+    },
+    "natural": {
+      "n_fires": 21,
+      "n_mapped": 16
+    },
+    "unknown": {
+      "n_fires": 237,
+      "n_mapped": 179
+    },
+    "work_spark": {
+      "n_fires": 22,
+      "n_mapped": 17
+    }
+  },
+  "recall_by_cause": {
+    "grid_electric": {
+      "recall@0.01": 0.0,
+      "recall@0.02": 0.05555555555555555,
+      "recall@0.05": 0.1111111111111111,
+      "recall@0.1": 0.16666666666666666
+    },
+    "work_spark": {
+      "recall@0.01": 0.0,
+      "recall@0.02": 0.0,
+      "recall@0.05": 0.0,
+      "recall@0.1": 0.0
+    },
+    "natural": {
+      "recall@0.01": 0.0,
+      "recall@0.02": 0.0,
+      "recall@0.05": 0.0,
+      "recall@0.1": 0.0
+    },
+    "human": {
+      "recall@0.01": 0.014925373134328358,
+      "recall@0.02": 0.031982942430703626,
+      "recall@0.05": 0.07889125799573561,
+      "recall@0.1": 0.1513859275053305
+    },
+    "unknown": {
+      "recall@0.01": 0.03932584269662921,
+      "recall@0.02": 0.056179775280898875,
+      "recall@0.05": 0.10674157303370786,
+      "recall@0.1": 0.20224719101123595
+    }
+  },
+  "bootstrap_ci": {
+    "grid_electric": {
+      "0.01": {
+        "mean": 0.0,
+        "ci_lo": 0.0,
+        "ci_hi": 0.0
+      },
+      "0.02": {
+        "mean": 0.05688888888888889,
+        "ci_lo": 0.0,
+        "ci_hi": 0.16666666666666666
+      },
+      "0.05": {
+        "mean": 0.1131388888888889,
+        "ci_lo": 0.0,
+        "ci_hi": 0.2777777777777778
+      },
+      "0.1": {
+        "mean": 0.16927777777777778,
+        "ci_lo": 0.0,
+        "ci_hi": 0.3888888888888889
+      }
+    },
+    "human": {
+      "0.01": {
+        "mean": 0.016952731092436977,
+        "ci_lo": 0.0063025210084033615,
+        "ci_hi": 0.029411764705882353
+      },
+      "0.02": {
+        "mean": 0.03352100840336134,
+        "ci_lo": 0.018907563025210083,
+        "ci_hi": 0.05042016806722689
+      },
+      "0.05": {
+        "mean": 0.0797436974789916,
+        "ci_lo": 0.0546218487394958,
+        "ci_hi": 0.10504201680672269
+      },
+      "0.1": {
+        "mean": 0.15083718487394956,
+        "ci_lo": 0.11974789915966387,
+        "ci_hi": 0.18277310924369747
+      }
+    }
+  },
+  "risk_percentile": {
+    "grid_electric": {
+      "n": 18.0,
+      "median": 0.6131467831074411,
+      "q1": 0.3523889813593884,
+      "q3": 0.6870890166663064
+    },
+    "work_spark": {
+      "n": 17.0,
+      "median": 0.4057312495046223,
+      "q1": 0.34627079685552264,
+      "q3": 0.5679881541687383
+    },
+    "natural": {
+      "n": 15.0,
+      "median": 0.6909203576806957,
+      "q1": 0.43656103413242253,
+      "q3": 0.8268011932297183
+    },
+    "human": {
+      "n": 469.0,
+      "median": 0.6400769546702406,
+      "q1": 0.38142928168435614,
+      "q3": 0.827569659108104
+    },
+    "unknown": {
+      "n": 178.0,
+      "median": 0.7001502345388124,
+      "q1": 0.41187141076356615,
+      "q3": 0.8766077257300966
+    }
+  },
+  "goseong_named_case": {
+    "found": true,
+    "resn": "특고압 전선 아크 불티(고성:936.14,속초:330.48)",
+    "fire_lon": 128.50286197019116,
+    "fire_lat": 38.20626700194682,
+    "pole_idx": 731687,
+    "dist_km": 0.32169258841365583,
+    "mapped_within_radius": true,
+    "global_pctile": 0.6558656319578046,
+    "in_top": {
+      "0.01": false,
+      "0.02": false,
+      "0.05": false,
+      "0.1": false
+    }
+  },
+  "grid_electric_rows": [
+    {
+      "idx": 10,
+      "resn": "전기누전추정",
+      "sgg_cd": "42730",
+      "occu_year": 2014,
+      "ambiguous": false
+    },
+    {
+      "idx": 14,
+      "resn": "전기누전 추정",
+      "sgg_cd": "42720",
+      "occu_year": 2014,
+      "ambiguous": false
+    },
+    {
+      "idx": 315,
+      "resn": "전기누전(전선피복 노출)",
+      "sgg_cd": "42210",
+      "occu_year": 2017,
+      "ambiguous": false
+    },
+    {
+      "idx": 325,
+      "resn": "철도 고압선 절단 스파크",
+      "sgg_cd": "42770",
+      "occu_year": 2016,
+      "ambiguous": true
+    },
+    {
+      "idx": 344,
+      "resn": "전기선 누전추정",
+      "sgg_cd": "42820",
+      "occu_year": 2017,
+      "ambiguous": false
+    },
+    {
+      "idx": 414,
+      "resn": "전선단락(추정)",
+      "sgg_cd": "42820",
+      "occu_year": 2018,
+      "ambiguous": false
+    },
+    {
+      "idx": 471,
+      "resn": "전신주고압선피복손상불티",
+      "sgg_cd": "42190",
+      "occu_year": 2022,
+      "ambiguous": false
+    },
+    {
+      "idx": 533,
+      "resn": "전기누전",
+      "sgg_cd": "42730",
+      "occu_year": 2021,
+      "ambiguous": false
+    },
+    {
+      "idx": 589,
+      "resn": "전선스파크발화",
+      "sgg_cd": "42130",
+      "occu_year": 2020,
+      "ambiguous": true
+    },
+    {
+      "idx": 630,
+      "resn": "전기누전 추정",
+      "sgg_cd": "42730",
+      "occu_year": 2020,
+      "ambiguous": false
+    },
+    {
+      "idx": 641,
+      "resn": "전기요인 추정",
+      "sgg_cd": "42820",
+      "occu_year": 2019,
+      "ambiguous": false
+    },
+    {
+      "idx": 657,
+      "resn": "전선단락",
+      "sgg_cd": "51820",
+      "occu_year": 2023,
+      "ambiguous": false
+    },
+    {
+      "idx": 670,
+      "resn": "전기합선",
+      "sgg_cd": "51780",
+      "occu_year": 2023,
+      "ambiguous": false
+    },
+    {
+      "idx": 684,
+      "resn": "전선합선추정",
+      "sgg_cd": "51750",
+      "occu_year": 2023,
+      "ambiguous": false
+    },
+    {
+      "idx": 689,
+      "resn": "풍력발전기화재",
+      "sgg_cd": "51730",
+      "occu_year": 2023,
+      "ambiguous": false
+    },
+    {
+      "idx": 709,
+      "resn": "전기적요인",
+      "sgg_cd": "51150",
+      "occu_year": 2023,
+      "ambiguous": false
+    },
+    {
+      "idx": 712,
+      "resn": "전선단선",
+      "sgg_cd": "51150",
+      "occu_year": 2023,
+      "ambiguous": false
+    },
+    {
+      "idx": 765,
+      "resn": "철도전차선스파크",
+      "sgg_cd": "42770",
+      "occu_year": 2022,
+      "ambiguous": true
+    },
+    {
+      "idx": 775,
+      "resn": "신당 전기초 합선(강릉:1033.07,동해:227.08)",
+      "sgg_cd": "42150",
+      "occu_year": 2019,
+      "ambiguous": false
+    },
+    {
+      "idx": 791,
+      "resn": "전선스파크 추정",
+      "sgg_cd": "42830",
+      "occu_year": 2014,
+      "ambiguous": true
+    },
+    {
+      "idx": 813,
+      "resn": "전기배선단락",
+      "sgg_cd": "42150",
+      "occu_year": 2015,
+      "ambiguous": false
+    },
+    {
+      "idx": 865,
+      "resn": "특고압 전선 아크 불티(고성:936.14,속초:330.48)",
+      "sgg_cd": "42820",
+      "occu_year": 2019,
+      "ambiguous": false
+    },
+    {
+      "idx": 866,
+      "resn": "벌채작업에 전선줄 스파크",
+      "sgg_cd": "42230",
+      "occu_year": 2012,
+      "ambiguous": true
+    },
+    {
+      "idx": 923,
+      "resn": "전선혼촉",
+      "sgg_cd": "42770",
+      "occu_year": 2024,
+      "ambiguous": false
+    }
+  ],
+  "n_ambiguous_grid": 5
+}

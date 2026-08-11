@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>강원 전주 산불위험 예상도</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root{--bg:#f7f7f9;--fg:#1c1c22;--muted:#666;--line:#e3e3ea;--accent:#b10026}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:system-ui,'Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--fg)}
+  #app{display:flex;height:100%}
+  #side{width:340px;min-width:340px;height:100%;overflow-y:auto;background:var(--bg);
+    border-right:1px solid var(--line);padding:18px 18px 40px}
+  #map{flex:1;height:100%}
+  h1{font-size:18px;margin:0 0 2px}
+  .lead{color:var(--muted);font-size:12.5px;line-height:1.5;margin:0 0 16px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:13px 14px;margin-bottom:13px}
+  .card h2{font-size:13px;margin:0 0 9px;letter-spacing:.02em}
+  label{font-size:12.5px;color:#333}
+  input[type=range]{width:100%}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .val{font-variant-numeric:tabular-nums;font-weight:600}
+  .radio{display:flex;gap:14px;margin-top:4px;font-size:12.5px}
+  .radio label{display:flex;align-items:center;gap:5px;cursor:pointer}
+  .file{margin-top:4px;font-size:12px}
+  button{font:inherit;font-size:12.5px;padding:6px 11px;border:1px solid var(--line);
+    background:#fff;border-radius:7px;cursor:pointer}
+  button:hover{background:#f0f0f4}
+  .hint{color:var(--muted);font-size:11.5px;line-height:1.5;margin-top:6px}
+  .stat{display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0;border-bottom:1px dashed var(--line)}
+  .stat:last-child{border-bottom:0}
+  .stat b{font-variant-numeric:tabular-nums}
+  .chip{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:middle}
+  #bar{display:flex;height:12px;border-radius:3px;overflow:hidden;margin:7px 0 3px}
+  #bar span{flex:1}
+  #ticks{display:flex;justify-content:space-between;color:var(--muted);font-size:11px}
+  #status{font-size:12px;color:var(--muted);min-height:16px}
+  .spin{color:var(--accent)}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="side">
+    <h1>🔥 산불위험 예상도</h1>
+    <p class="lead">강원 전주 <b id="ntot">–</b>본. 발화점을 올리거나 고위험 비율을
+      바꾸면 <b>어디가 위험한지</b>가 지도에 다시 그려집니다.</p>
+
+    <div class="card">
+      <h2>① 고위험 비율(예산)</h2>
+      <div class="row"><label>상위 위험 전주 비율</label><span class="val"><span id="pv">2.0</span>%</span></div>
+      <input id="prev" type="range" min="0.5" max="10" step="0.5" value="2">
+      <div class="hint">전체 전주 중 상위 몇 %를 “고위험(1)”으로 볼지. 지도의 붉은 테두리 격자가 선정 구역입니다.</div>
+    </div>
+
+    <div class="card">
+      <h2>② 발화점 입력(선택)</h2>
+      <input class="file" id="csv" type="file" accept=".csv,text/csv">
+      <div class="radio">
+        <label><input type="radio" name="alloc" value="global" checked> 전역 배분</label>
+        <label><input type="radio" name="alloc" value="regime_anchor"> 체제앵커 배분</label>
+      </div>
+      <div style="margin-top:8px"><button id="clear">발화점 지우기</button>
+        <span id="nf" class="hint" style="margin-left:6px">입력 0점</span></div>
+      <div class="hint">CSV 헤더에 <code>lon,lat</code>(또는 경도/위도). 입력 발화점은 지역 위험배율을
+        재추정하고, 체제앵커 배분 시 고위험 예산을 발화밀도 비례로 나눕니다.</div>
+    </div>
+
+    <div class="card">
+      <h2>③ 불 나면 번짐(확산 시뮬)</h2>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="ignite"> 🔥 발화점 찍기 모드 — 지도를 클릭</label>
+      <div class="row" style="margin-top:8px">
+        <label>풍향(from) <span id="wdv" class="val">270</span>°</label>
+        <label>풍속 <span id="wsv" class="val">8</span> m/s</label>
+      </div>
+      <input id="wdir" type="range" min="0" max="359" step="5" value="270">
+      <input id="wspd" type="range" min="2" max="20" step="1" value="8">
+      <div style="margin-top:8px"><button id="clearSpread">확산 지우기</button>
+        <span id="spreadStat" class="hint" style="margin-left:6px"></span></div>
+      <div class="hint">클릭한 지점에 불이 났다고 보고, 기존 확산 커널로 바람 타고 번지는
+        노출확률(반경 5km)을 지도에 표시합니다. 서풍(270°)이면 동쪽으로 번져요.</div>
+    </div>
+
+    <div class="card">
+      <h2>결과 요약</h2>
+      <div class="stat"><span>고위험(1) 전주</span><b id="nhigh">–</b></div>
+      <div class="stat"><span><span class="chip" style="background:#1f6fb4"></span>영동</span><b id="r_yeongdong">–</b></div>
+      <div class="stat"><span><span class="chip" style="background:#d62728"></span>양간지풍 회랑</span><b id="r_corridor">–</b></div>
+      <div class="stat"><span><span class="chip" style="background:#2ca02c"></span>영서</span><b id="r_yeongseo">–</b></div>
+      <div class="stat"><span><span class="chip" style="background:#9467bd"></span>산간</span><b id="r_mountain">–</b></div>
+      <div id="status" style="margin-top:9px"></div>
+    </div>
+
+    <div class="card">
+      <h2>위험 백분위</h2>
+      <div id="bar"></div>
+      <div id="ticks"><span>0 낮음</span><span>50</span><span>100 높음</span></div>
+      <div class="hint" style="margin-top:8px">색 = 격자 평균 위험 백분위. 붉은 테두리 = 고위험(1) 선정 격자. 파란 점 = 입력 발화점.</div>
+    </div>
+  </aside>
+  <div id="map"></div>
+</div>
+
+<script>
+const map = L.map('map', {preferCanvas:true}).setView([37.7,128.2], 8);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+  {maxZoom:18, attribution:'© OpenStreetMap'}).addTo(map);
+const gridLayer = L.layerGroup().addTo(map);
+const fireLayer = L.layerGroup().addTo(map);
+const spreadLayer = L.layerGroup().addTo(map);   // 확산 노출 셀
+const igniteLayer = L.layerGroup().addTo(map);   // 발화점 + 바람 화살표
+
+let fires = [];          // [[lon,lat],...] 입력 발화점
+let centered = false;
+const REG = ['yeongdong','corridor','yeongseo','mountain'];
+
+function setStatus(t, spin){ const s=document.getElementById('status');
+  s.className = spin?'spin':''; s.textContent = t; }
+
+function drawLegend(stops){
+  const bar=document.getElementById('bar'); bar.innerHTML='';
+  (stops||[]).forEach(s=>{const e=document.createElement('span');e.style.background=s.c;bar.appendChild(e);});
+}
+
+let lastGridCells = [];
+function igniteOn(){ return document.getElementById('ignite').checked; }
+
+function drawGrid(cells){
+  lastGridCells = cells;
+  gridLayer.clearLayers();
+  const interactive = !igniteOn();   // 발화 모드면 클릭이 지도로 통과하도록 비활성
+  for(const c of cells){
+    const highlight = c.h>0;
+    const rect = L.rectangle([[c.b[0],c.b[1]],[c.b[2],c.b[3]]], {
+      stroke: highlight, color:'#7a0026', weight: highlight?1.1:0,
+      fill:true, fillColor:c.c, fillOpacity:0.6, interactive
+    });
+    if(interactive) rect.bindPopup(
+      `<b>격자 위험 백분위</b><br>평균 <b>${c.r}</b> · 최고 ${c.rx}<br>`+
+      `전주 ${c.n.toLocaleString()}본 · 고위험 ${c.h.toLocaleString()}본<br>우세 체제: ${c.g}`);
+    rect.addTo(gridLayer);
+  }
+}
+
+function drawFires(){
+  fireLayer.clearLayers();
+  for(const f of fires){
+    L.circleMarker([f[1],f[0]], {radius:3, color:'#0b5cad', weight:1,
+      fillColor:'#2b8cff', fillOpacity:0.9, interactive:false}).addTo(fireLayer);
+  }
+  document.getElementById('nf').textContent = `입력 ${fires.length.toLocaleString()}점`;
+}
+
+async function refresh(){
+  const prevalence = parseFloat(document.getElementById('prev').value)/100;
+  const alloc = document.querySelector('input[name=alloc]:checked').value;
+  setStatus('계산 중…', true);
+  try{
+    const res = await fetch('/api/predict', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({prevalence, alloc, fires})});
+    const d = await res.json();
+    if(d.error){ setStatus('오류: '+d.error); return; }
+    document.getElementById('ntot').textContent = d.n_total.toLocaleString();
+    document.getElementById('nhigh').textContent = d.n_high_total.toLocaleString();
+    for(const r of REG) document.getElementById('r_'+r).textContent =
+      (d.regime_dist[r]||0).toLocaleString();
+    drawLegend(d.legend);
+    drawGrid(d.cells);
+    if(!centered && d.center){ map.setView(d.center, 8); centered=true; }
+    const allocKo = d.alloc==='regime_anchor' ? '체제앵커' : '전역';
+    setStatus(`격자 ${d.n_cells.toLocaleString()}셀 · 배분 ${allocKo}`+
+      (d.mult_applied?` · 발화점 ${d.n_fires.toLocaleString()}점 반영`:''));
+  }catch(e){ setStatus('요청 실패: '+e.message); }
+}
+
+// 슬라이더(디바운스)
+let t=null;
+document.getElementById('prev').addEventListener('input', e=>{
+  document.getElementById('pv').textContent = parseFloat(e.target.value).toFixed(1);
+  clearTimeout(t); t=setTimeout(refresh, 250);
+});
+document.querySelectorAll('input[name=alloc]').forEach(el=>
+  el.addEventListener('change', refresh));
+
+// 발화점 CSV 파싱: 헤더에서 lon/lat 열 탐지(없으면 앞 두 열).
+function parseCSV(text){
+  const lines = text.split(/\r?\n/).filter(l=>l.trim().length);
+  if(!lines.length) return [];
+  const head = lines[0].split(',').map(s=>s.trim().toLowerCase());
+  const find = names => head.findIndex(h=>names.includes(h));
+  let ix = find(['lon','longitude','x','경도','lng']);
+  let iy = find(['lat','latitude','y','위도']);
+  let start = 1;
+  if(ix<0 || iy<0){ ix=0; iy=1; start=0; }   // 헤더 없으면 앞 두 열
+  const out=[];
+  for(let i=start;i<lines.length;i++){
+    const p=lines[i].split(',');
+    const lon=parseFloat(p[ix]), lat=parseFloat(p[iy]);
+    if(isFinite(lon)&&isFinite(lat)&&lon>120&&lon<135&&lat>30&&lat<45) out.push([lon,lat]);
+  }
+  return out;
+}
+document.getElementById('csv').addEventListener('change', ev=>{
+  const file=ev.target.files[0]; if(!file) return;
+  const rd=new FileReader();
+  rd.onload=()=>{ fires=parseCSV(rd.result); drawFires();
+    if(fires.length){ setStatus(`발화점 ${fires.length}점 로드`); }
+    else setStatus('유효한 lon/lat 을 못 찾음(헤더/좌표 확인)');
+    refresh(); };
+  rd.readAsText(file,'utf-8');
+});
+document.getElementById('clear').addEventListener('click', ()=>{
+  fires=[]; drawFires(); refresh(); });
+
+// ── ③ 발화점 클릭 → 확산 시뮬 ──────────────────────────────────
+const wdir=document.getElementById('wdir'), wspd=document.getElementById('wspd');
+wdir.addEventListener('input', ()=>document.getElementById('wdv').textContent=wdir.value);
+wspd.addEventListener('input', ()=>document.getElementById('wsv').textContent=wspd.value);
+
+function clearSpread(){ spreadLayer.clearLayers(); igniteLayer.clearLayers();
+  document.getElementById('spreadStat').textContent=''; }
+document.getElementById('clearSpread').addEventListener('click', clearSpread);
+
+// 나침반 bearing(도) + 거리(km) → 목적지 latlng.
+function destPoint(lat, lon, bearingDeg, km){
+  const b=bearingDeg*Math.PI/180, dLat=km/111.0*Math.cos(b);
+  const dLon=km/(111.0*Math.cos(lat*Math.PI/180))*Math.sin(b);
+  return [lat+dLat, lon+dLon];
+}
+
+function drawSpread(d){
+  spreadLayer.clearLayers(); igniteLayer.clearLayers();
+  for(const c of d.cells){
+    L.rectangle([[c.b[0],c.b[1]],[c.b[2],c.b[3]]],
+      {stroke:false, fill:true, fillColor:c.c, fillOpacity:0.75})
+      .bindPopup(`노출확률 <b>${c.p}</b>`).addTo(spreadLayer);
+  }
+  const ig=d.ignition;  // [lat,lon]
+  L.marker(ig, {icon:L.divIcon({className:'',html:'🔥',iconSize:[24,24],
+    iconAnchor:[12,12]})}).bindPopup('발화점').addTo(igniteLayer);
+  // 풍하 화살표(발화점 → 번지는 방향).
+  const tip=destPoint(ig[0], ig[1], d.downwind_deg, d.radius_km);
+  L.polyline([ig, tip], {color:'#1f6fb4', weight:3, opacity:0.9}).addTo(igniteLayer);
+  L.circleMarker(tip, {radius:4, color:'#1f6fb4', fillColor:'#1f6fb4',
+    fillOpacity:1}).bindPopup('풍하 방향').addTo(igniteLayer);
+  document.getElementById('spreadStat').textContent =
+    `노출 ${d.n_exposed.toLocaleString()}본 · 최대확률 ${d.max_prob}`;
+  // 확산은 반경 5km라 도 전체 줌에선 안 보임 → 결과 영역으로 자동 확대.
+  const km = d.radius_km * 1.4;
+  const dLat = km/111.0, dLon = km/(111.0*Math.cos(ig[0]*Math.PI/180));
+  map.fitBounds([[ig[0]-dLat, ig[1]-dLon],[ig[0]+dLat, ig[1]+dLon]]);
+}
+
+async function ignite(lat, lon){
+  document.getElementById('spreadStat').textContent='확산 계산 중…';
+  try{
+    const res=await fetch('/api/spread', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({lon, lat,
+        wind_deg: parseFloat(wdir.value), wind_speed: parseFloat(wspd.value)})});
+    const d=await res.json();
+    if(d.error){ document.getElementById('spreadStat').textContent='오류: '+d.error; return; }
+    drawSpread(d);
+  }catch(e){ document.getElementById('spreadStat').textContent='요청 실패: '+e.message; }
+}
+
+map.on('click', ev=>{
+  if(!document.getElementById('ignite').checked) return;
+  ignite(ev.latlng.lat, ev.latlng.lng);
+});
+// 발화 모드 토글: 커서 변경 + 격자 클릭 통과되도록 재렌더.
+document.getElementById('ignite').addEventListener('change', e=>{
+  map.getContainer().style.cursor = e.target.checked ? 'crosshair' : '';
+  drawGrid(lastGridCells);   // interactive 여부 갱신
+  document.getElementById('spreadStat').textContent =
+    e.target.checked ? '지도를 클릭하세요 🔥' : '';
+});
+
+// 첫 로드
+refresh();
+</script>
+</body>
+</html>

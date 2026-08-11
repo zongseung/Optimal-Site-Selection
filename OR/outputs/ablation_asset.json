@@ -1,0 +1,265 @@
+{
+  "provenance": {
+    "experiment": "A — asset-aware vs asset-blind LOGO ablation",
+    "method": "per-arm LHS(Dirichlet) random search + coordinate ascent (fair re-tune)",
+    "n_random": 2000,
+    "ca_passes": 3,
+    "quant_step": 0.05,
+    "bootstrap_B": 2000,
+    "objective": "weighted spatial-block CV recall@top-k (holdout)",
+    "objective_weights": {
+      "0.01": 0.15,
+      "0.02": 0.25,
+      "0.05": 0.4,
+      "0.1": 0.2
+    },
+    "spatial_cv_block_km": 10.0,
+    "topk_for_recall": [
+      0.01,
+      0.02,
+      0.05,
+      0.1
+    ],
+    "seed": 20260618,
+    "n_positives_mapped": 706,
+    "note": "S(spread)·W(weather)·gate·anchor·blocks held FIXED across all arms; only feature_set & re-tuned weights differ (asset enters I only).",
+    "weather_source": "season_weather(source='features')",
+    "feature_sets": {
+      "blind": [
+        "forest",
+        "road",
+        "fwi",
+        "yanggan",
+        "fuel",
+        "landcover"
+      ],
+      "aware": [
+        "forest",
+        "road",
+        "fwi",
+        "yanggan",
+        "fuel",
+        "landcover",
+        "powerline"
+      ],
+      "plus": [
+        "forest",
+        "road",
+        "fwi",
+        "yanggan",
+        "fuel",
+        "landcover",
+        "powerline",
+        "substation"
+      ]
+    }
+  },
+  "arms": {
+    "blind": {
+      "feature_set": [
+        "forest",
+        "road",
+        "fwi",
+        "yanggan",
+        "fuel",
+        "landcover"
+      ],
+      "weights_dict": {
+        "yeongdong": {
+          "forest": 0.1,
+          "road": 0.1,
+          "fwi": 0.05,
+          "yanggan": 0.05,
+          "fuel": 0.55,
+          "landcover": 0.15
+        },
+        "yeongseo": {
+          "forest": 0.3158,
+          "road": 0.1579,
+          "fwi": 0.0,
+          "yanggan": 0.0,
+          "fuel": 0.2632,
+          "landcover": 0.2632
+        },
+        "mountain": {
+          "forest": 0.1,
+          "road": 0.35,
+          "fwi": 0.1,
+          "yanggan": 0.25,
+          "fuel": 0.15,
+          "landcover": 0.05
+        }
+      },
+      "cv_recall": {
+        "top1": 0.02228,
+        "top2": 0.03975,
+        "top5": 0.09178,
+        "top10": 0.18878
+      },
+      "score": 0.08775,
+      "random_vs_spatial_gap": {
+        "random_recall": 0.09183,
+        "spatial_recall": 0.09178,
+        "gap": 5e-05
+      }
+    },
+    "aware": {
+      "feature_set": [
+        "forest",
+        "road",
+        "fwi",
+        "yanggan",
+        "fuel",
+        "landcover",
+        "powerline"
+      ],
+      "weights_dict": {
+        "yeongdong": {
+          "forest": 0.3,
+          "road": 0.0,
+          "fwi": 0.0,
+          "yanggan": 0.05,
+          "fuel": 0.3,
+          "landcover": 0.3,
+          "powerline": 0.05
+        },
+        "yeongseo": {
+          "forest": 0.2,
+          "road": 0.1,
+          "fwi": 0.0,
+          "yanggan": 0.0,
+          "fuel": 0.4,
+          "landcover": 0.0,
+          "powerline": 0.3
+        },
+        "mountain": {
+          "forest": 0.0526,
+          "road": 0.2105,
+          "fwi": 0.2632,
+          "yanggan": 0.2632,
+          "fuel": 0.0,
+          "landcover": 0.0,
+          "powerline": 0.2105
+        }
+      },
+      "cv_recall": {
+        "top1": 0.02211,
+        "top2": 0.03836,
+        "top5": 0.10291,
+        "top10": 0.18335
+      },
+      "score": 0.09074,
+      "random_vs_spatial_gap": {
+        "random_recall": 0.09131,
+        "spatial_recall": 0.10291,
+        "gap": -0.0116
+      }
+    },
+    "plus": {
+      "feature_set": [
+        "forest",
+        "road",
+        "fwi",
+        "yanggan",
+        "fuel",
+        "landcover",
+        "powerline",
+        "substation"
+      ],
+      "weights_dict": {
+        "yeongdong": {
+          "forest": 0.2857,
+          "road": 0.0952,
+          "fwi": 0.0,
+          "yanggan": 0.0,
+          "fuel": 0.0,
+          "landcover": 0.381,
+          "powerline": 0.0,
+          "substation": 0.2381
+        },
+        "yeongseo": {
+          "forest": 0.4211,
+          "road": 0.2105,
+          "fwi": 0.1579,
+          "yanggan": 0.0526,
+          "fuel": 0.1053,
+          "landcover": 0.0,
+          "powerline": 0.0526,
+          "substation": 0.0
+        },
+        "mountain": {
+          "forest": 0.0,
+          "road": 0.15,
+          "fwi": 0.05,
+          "yanggan": 0.35,
+          "fuel": 0.4,
+          "landcover": 0.05,
+          "powerline": 0.0,
+          "substation": 0.0
+        }
+      },
+      "cv_recall": {
+        "top1": 0.01768,
+        "top2": 0.03836,
+        "top5": 0.09761,
+        "top10": 0.17659
+      },
+      "score": 0.0866,
+      "random_vs_spatial_gap": {
+        "random_recall": 0.09245,
+        "spatial_recall": 0.09761,
+        "gap": -0.00516
+      }
+    }
+  },
+  "bootstrap_delta_recall": {
+    "aware": {
+      "top1": {
+        "delta_mean": 0.0015,
+        "ci_lo": 0.0,
+        "ci_hi": 0.00438
+      },
+      "top2": {
+        "delta_mean": -0.00141,
+        "ci_lo": -0.0073,
+        "ci_hi": 0.00438
+      },
+      "top5": {
+        "delta_mean": 1e-05,
+        "ci_lo": -0.00876,
+        "ci_hi": 0.00876
+      },
+      "top10": {
+        "delta_mean": 0.01151,
+        "ci_lo": -0.00584,
+        "ci_hi": 0.0292
+      }
+    },
+    "plus": {
+      "top1": {
+        "delta_mean": -0.00013,
+        "ci_lo": -0.00584,
+        "ci_hi": 0.00584
+      },
+      "top2": {
+        "delta_mean": -0.00582,
+        "ci_lo": -0.01314,
+        "ci_hi": 0.0
+      },
+      "top5": {
+        "delta_mean": 0.00162,
+        "ci_lo": -0.01022,
+        "ci_hi": 0.01314
+      },
+      "top10": {
+        "delta_mean": -0.00272,
+        "ci_lo": -0.01898,
+        "ci_hi": 0.0146
+      }
+    }
+  },
+  "H_A": {
+    "holds": false,
+    "significant_ks": {}
+  }
+}

@@ -1,16 +1,19 @@
-/used_dataset/weather
-/used_dataset/poles
-/used_dataset/fire
-/used_dataset/burn
-/used_dataset/admin
+/OR/used_dataset/weather
+/OR/used_dataset/poles
+/OR/used_dataset/fire
+/OR/used_dataset/burn
+/OR/used_dataset/admin
 # build / cache / outputs
 __pycache__/
 *.pyc
 .pytest_cache/
-/rust/pfire_kernels/target/
+/OR/rust/pfire_kernels/target/
 # 대용량 제출 CSV (재생성 가능, GitHub 파일당 100MB 초과) — 코드·문서만 추적
-/outputs/submissions/*.csv
+/OR/outputs/submissions/*.csv
+
+# 예측 도구·웹앱 산출물(재생성 가능: 엔진 캐시·risk.csv·지도) — 코드만 추적
+/OR/outputs/predict/
 
 .env
 # 리서치 메모(작업용, 추적 제외)
-/claudedocs/
+/OR/claudedocs/

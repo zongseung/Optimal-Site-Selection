@@ -1,0 +1,13 @@
+{
+  "prevalence": 0.075,
+  "n_positive": 104088,
+  "threshold": 0.16113126614417625,
+  "recall": 0.1591240875912409,
+  "f1_proxy": 0.1591235716378774,
+  "recall_lift": 2.121654501216545,
+  "regime": {
+    "yeongdong": 85587,
+    "yeongseo": 12909,
+    "mountain": 5592
+  }
+}

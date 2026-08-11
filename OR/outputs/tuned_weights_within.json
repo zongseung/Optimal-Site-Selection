@@ -1,0 +1,133 @@
+{
+  "provenance": {
+    "method": "LHS(Dirichlet) random search + coordinate ascent",
+    "n_random_candidates": 4000,
+    "ca_passes": 2,
+    "quant_step": 0.05,
+    "objective": "weighted spatial-block CV recall@top-k (holdout)",
+    "objective_weights": {
+      "0.01": 0.15,
+      "0.02": 0.25,
+      "0.05": 0.4,
+      "0.1": 0.2
+    },
+    "spatial_cv_block_km": 10.0,
+    "n_positives_mapped": 706,
+    "seed": 20260618
+  },
+  "feat_keys": [
+    "forest",
+    "road",
+    "powerline",
+    "fwi",
+    "yanggan",
+    "fuel",
+    "landcover"
+  ],
+  "regime_order": [
+    "yeongdong",
+    "corridor",
+    "yeongseo",
+    "mountain"
+  ],
+  "score_before": 0.08704,
+  "score_after": 0.10412,
+  "cv_recall_before": {
+    "top1": 0.027,
+    "top2": 0.0376,
+    "top5": 0.0902,
+    "top10": 0.1532
+  },
+  "cv_recall_after": {
+    "top1": 0.0141,
+    "top2": 0.0321,
+    "top5": 0.0711,
+    "top10": 0.1449
+  },
+  "random_vs_spatial_gap_after": {
+    "random_recall": 0.0759,
+    "spatial_recall": 0.0711,
+    "gap": 0.0048
+  },
+  "random_vs_spatial_gap_before": {
+    "random_recall": 0.0849,
+    "spatial_recall": 0.0902,
+    "gap": -0.0052
+  },
+  "weights_before": {
+    "yeongdong": {
+      "forest": 0.3333,
+      "road": 0.0,
+      "powerline": 0.0952,
+      "fwi": 0.0952,
+      "yanggan": 0.0476,
+      "fuel": 0.3333,
+      "landcover": 0.0952
+    },
+    "corridor": {
+      "forest": 0.15,
+      "road": 0.05,
+      "powerline": 0.25,
+      "fwi": 0.1,
+      "yanggan": 0.25,
+      "fuel": 0.1,
+      "landcover": 0.1
+    },
+    "yeongseo": {
+      "forest": 0.35,
+      "road": 0.15,
+      "powerline": 0.35,
+      "fwi": 0.0,
+      "yanggan": 0.05,
+      "fuel": 0.0,
+      "landcover": 0.1
+    },
+    "mountain": {
+      "forest": 0.0,
+      "road": 0.1905,
+      "powerline": 0.4286,
+      "fwi": 0.1429,
+      "yanggan": 0.1905,
+      "fuel": 0.0,
+      "landcover": 0.0476
+    }
+  },
+  "weights_tuned": {
+    "yeongdong": {
+      "forest": 0.0,
+      "road": 0.0,
+      "powerline": 0.0526,
+      "fwi": 0.3158,
+      "yanggan": 0.3684,
+      "fuel": 0.2105,
+      "landcover": 0.0526
+    },
+    "corridor": {
+      "forest": 0.05,
+      "road": 0.15,
+      "powerline": 0.05,
+      "fwi": 0.1,
+      "yanggan": 0.25,
+      "fuel": 0.0,
+      "landcover": 0.4
+    },
+    "yeongseo": {
+      "forest": 0.05,
+      "road": 0.0,
+      "powerline": 0.05,
+      "fwi": 0.05,
+      "yanggan": 0.35,
+      "fuel": 0.35,
+      "landcover": 0.15
+    },
+    "mountain": {
+      "forest": 0.0,
+      "road": 0.7619,
+      "powerline": 0.0,
+      "fwi": 0.0476,
+      "yanggan": 0.0952,
+      "fuel": 0.0476,
+      "landcover": 0.0476
+    }
+  }
+}

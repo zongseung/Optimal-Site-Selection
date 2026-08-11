@@ -1,0 +1,562 @@
+{
+  "prevalence": 0.02,
+  "total_budget": 27757,
+  "adopt_alloc_mode": "regime_anchor",
+  "alloc_cv_recall": {
+    "global": {
+      "top0.01": {
+        "mean": 0.01840854061076769,
+        "std": 0.009943396126200231,
+        "n_folds_with_pos": 5.0
+      },
+      "top0.02": {
+        "mean": 0.03252665391763364,
+        "std": 0.011909647080765149,
+        "n_folds_with_pos": 5.0
+      },
+      "top0.05": {
+        "mean": 0.07653608878313557,
+        "std": 0.020204176374450718,
+        "n_folds_with_pos": 5.0
+      },
+      "top0.1": {
+        "mean": 0.1168188567627519,
+        "std": 0.03070011135284089,
+        "n_folds_with_pos": 5.0
+      }
+    },
+    "regime_equal": {
+      "top0.01": {
+        "mean": 0.016543441861226763,
+        "std": 0.009492576250472765,
+        "n_folds_with_pos": 5.0
+      },
+      "top0.02": {
+        "mean": 0.032060344234456487,
+        "std": 0.010050020384593563,
+        "n_folds_with_pos": 5.0
+      },
+      "top0.05": {
+        "mean": 0.07741889923311673,
+        "std": 0.020582857077740623,
+        "n_folds_with_pos": 5.0
+      },
+      "top0.1": {
+        "mean": 0.11939950192404222,
+        "std": 0.03160496824192248,
+        "n_folds_with_pos": 5.0
+      }
+    },
+    "regime_count": {
+      "top0.01": {
+        "mean": 0.016543441861226763,
+        "std": 0.009492576250472765,
+        "n_folds_with_pos": 5.0
+      },
+      "top0.02": {
+        "mean": 0.032060344234456487,
+        "std": 0.010050020384593563,
+        "n_folds_with_pos": 5.0
+      },
+      "top0.05": {
+        "mean": 0.07741889923311673,
+        "std": 0.020582857077740623,
+        "n_folds_with_pos": 5.0
+      },
+      "top0.1": {
+        "mean": 0.11939950192404222,
+        "std": 0.03160496824192248,
+        "n_folds_with_pos": 5.0
+      }
+    },
+    "regime_anchor": {
+      "top0.01": {
+        "mean": 0.01969159000937491,
+        "std": 0.012010230303067701,
+        "n_folds_with_pos": 5.0
+      },
+      "top0.02": {
+        "mean": 0.033818487920311016,
+        "std": 0.016462773480487355,
+        "n_folds_with_pos": 5.0
+      },
+      "top0.05": {
+        "mean": 0.07612857665247158,
+        "std": 0.019502937940503624,
+        "n_folds_with_pos": 5.0
+      },
+      "top0.1": {
+        "mean": 0.11810917934339707,
+        "std": 0.031048763226196114,
+        "n_folds_with_pos": 5.0
+      }
+    }
+  },
+  "alloc_score_mean_recall": {
+    "global": 0.0610725350185722,
+    "regime_equal": 0.06135554681321055,
+    "regime_count": 0.06135554681321055,
+    "regime_anchor": 0.061936958481388645
+  },
+  "regime_anchor_count_full": {
+    "yeongdong": 94.0,
+    "corridor": 59.0,
+    "yeongseo": 389.0,
+    "mountain": 143.0
+  },
+  "regime_decision_distribution": {
+    "yeongdong": {
+      "n_poles": 161901.0,
+      "n_positive": 3827.0,
+      "positive_rate_pct": 2.3637902174785825,
+      "share_of_positives_pct": 13.787513059768706
+    },
+    "corridor": {
+      "n_poles": 149961.0,
+      "n_positive": 2417.0,
+      "positive_rate_pct": 1.6117523889544616,
+      "share_of_positives_pct": 8.70771336960046
+    },
+    "yeongseo": {
+      "n_poles": 661403.0,
+      "n_positive": 15712.0,
+      "positive_rate_pct": 2.3755562040087512,
+      "share_of_positives_pct": 56.60554094462658
+    },
+    "mountain": {
+      "n_poles": 414566.0,
+      "n_positive": 5801.0,
+      "positive_rate_pct": 1.399294684079254,
+      "share_of_positives_pct": 20.899232626004252
+    }
+  },
+  "f1_sensitivity_global_vs_regime": {
+    "0.005": {
+      "global": {
+        "predicted_positive": 6940.0,
+        "recall": 0.00291970802919708,
+        "precision_proxy": 0.002919352531605629,
+        "f1_proxy": 0.0029195302695795337
+      },
+      "regime": {
+        "predicted_positive": 6940.0,
+        "recall": 0.0072992700729927005,
+        "precision_proxy": 0.007298381329014072,
+        "f1_proxy": 0.0072988256739488335
+      }
+    },
+    "0.01": {
+      "global": {
+        "predicted_positive": 13879.0,
+        "recall": 0.01167883211678832,
+        "precision_proxy": 0.011678251499008899,
+        "f1_proxy": 0.01167854180068202
+      },
+      "regime": {
+        "predicted_positive": 13879.0,
+        "recall": 0.01897810218978102,
+        "precision_proxy": 0.01897715868588946,
+        "f1_proxy": 0.01897763042610828
+      }
+    },
+    "0.02": {
+      "global": {
+        "predicted_positive": 27757.0,
+        "recall": 0.035036496350364967,
+        "precision_proxy": 0.03503601669231067,
+        "f1_proxy": 0.03503625651969615
+      },
+      "regime": {
+        "predicted_positive": 27757.0,
+        "recall": 0.030656934306569343,
+        "precision_proxy": 0.030656514605771835,
+        "f1_proxy": 0.030656724454734125
+      }
+    },
+    "0.03": {
+      "global": {
+        "predicted_positive": 41635.0,
+        "recall": 0.051094890510948905,
+        "precision_proxy": 0.05109480460624527,
+        "f1_proxy": 0.05109484755856098
+      },
+      "regime": {
+        "predicted_positive": 41635.0,
+        "recall": 0.049635036496350364,
+        "precision_proxy": 0.04963495304606684,
+        "f1_proxy": 0.04963499477117353
+      }
+    },
+    "0.05": {
+      "global": {
+        "predicted_positive": 69392.0,
+        "recall": 0.07007299270072993,
+        "precision_proxy": 0.07007253828456214,
+        "f1_proxy": 0.07007276549190931
+      },
+      "regime": {
+        "predicted_positive": 69392.0,
+        "recall": 0.08175182481751825,
+        "precision_proxy": 0.0817512946653225,
+        "f1_proxy": 0.08175155974056088
+      }
+    },
+    "0.1": {
+      "global": {
+        "predicted_positive": 138784.0,
+        "recall": 0.12262773722627737,
+        "precision_proxy": 0.12262694199798374,
+        "f1_proxy": 0.12262733961084131
+      },
+      "regime": {
+        "predicted_positive": 138784.0,
+        "recall": 0.15036496350364964,
+        "precision_proxy": 0.1503639884022896,
+        "f1_proxy": 0.15036447595138874
+      }
+    }
+  },
+  "f1_sensitivity_global_curve": {
+    "0.005": {
+      "threshold": 0.4586291216276469,
+      "predicted_positive": 6940.0,
+      "recall": 0.00291970802919708,
+      "f1_proxy": 0.0029195302695795337
+    },
+    "0.01": {
+      "threshold": 0.4143766871482788,
+      "predicted_positive": 13879.0,
+      "recall": 0.01167883211678832,
+      "f1_proxy": 0.01167854180068202
+    },
+    "0.02": {
+      "threshold": 0.370401882875675,
+      "predicted_positive": 27757.0,
+      "recall": 0.035036496350364967,
+      "f1_proxy": 0.03503625651969615
+    },
+    "0.03": {
+      "threshold": 0.3476229579007697,
+      "predicted_positive": 41635.0,
+      "recall": 0.051094890510948905,
+      "f1_proxy": 0.05109484755856098
+    },
+    "0.05": {
+      "threshold": 0.32177033888024664,
+      "predicted_positive": 69392.0,
+      "recall": 0.07007299270072993,
+      "f1_proxy": 0.07007276549190931
+    },
+    "0.1": {
+      "threshold": 0.28817517554672967,
+      "predicted_positive": 138784.0,
+      "recall": 0.12262773722627737,
+      "f1_proxy": 0.12262733961084131
+    }
+  },
+  "final_decision_cv_recall": {
+    "top0.01": {
+      "mean": 0.01840854061076769,
+      "std": 0.009943396126200231,
+      "n_folds_with_pos": 5.0
+    },
+    "top0.02": {
+      "mean": 0.03252665391763364,
+      "std": 0.011909647080765149,
+      "n_folds_with_pos": 5.0
+    },
+    "top0.05": {
+      "mean": 0.07653608878313557,
+      "std": 0.020204176374450718,
+      "n_folds_with_pos": 5.0
+    },
+    "top0.1": {
+      "mean": 0.1168188567627519,
+      "std": 0.03070011135284089,
+      "n_folds_with_pos": 5.0
+    }
+  },
+  "random_vs_spatial_gap": {
+    "random_recall": 0.07016537659049928,
+    "spatial_recall": 0.07653608878313557,
+    "gap": -0.006370712192636296
+  },
+  "goseong_sanity": {
+    "n_poles": 3465.0,
+    "mean_pctile": 0.8510893451141175,
+    "frac_top10": 0.3665223665223665
+  },
+  "multiplier_adopted": false,
+  "posterior_coverage": {
+    "posterior_spatial_backend": "bym",
+    "conformal_alpha": 0.1,
+    "posterior_draws": 200,
+    "credible_mean_width": 0.04688368124855431,
+    "coverage_conformal": {
+      "all": {
+        "nominal": 0.9,
+        "empirical": 0.8934306569343066,
+        "n_test": 685.0,
+        "n_folds": 5.0
+      },
+      "yeongdong": {
+        "nominal": 0.9,
+        "empirical": 0.8936170212765957,
+        "n_test": 94.0,
+        "n_folds": 5.0
+      },
+      "corridor": {
+        "nominal": 0.9,
+        "empirical": 0.9322033898305084,
+        "n_test": 59.0,
+        "n_folds": 5.0
+      },
+      "yeongseo": {
+        "nominal": 0.9,
+        "empirical": 0.8894601542416453,
+        "n_test": 389.0,
+        "n_folds": 5.0
+      },
+      "mountain": {
+        "nominal": 0.9,
+        "empirical": 0.8881118881118881,
+        "n_test": 143.0,
+        "n_folds": 5.0
+      }
+    },
+    "coverage_credible": {
+      "all": {
+        "nominal": 0.8999999999999999,
+        "empirical": 1.0,
+        "n_test": 685.0,
+        "n_folds": 5.0
+      },
+      "yeongdong": {
+        "nominal": 0.8999999999999999,
+        "empirical": 1.0,
+        "n_test": 94.0,
+        "n_folds": 5.0
+      },
+      "corridor": {
+        "nominal": 0.8999999999999999,
+        "empirical": 1.0,
+        "n_test": 59.0,
+        "n_folds": 5.0
+      },
+      "yeongseo": {
+        "nominal": 0.8999999999999999,
+        "empirical": 1.0,
+        "n_test": 389.0,
+        "n_folds": 5.0
+      },
+      "mountain": {
+        "nominal": 0.8999999999999999,
+        "empirical": 1.0,
+        "n_test": 143.0,
+        "n_folds": 5.0
+      }
+    },
+    "sgg_posterior_table": [
+      {
+        "sgg": "태백",
+        "mult_mean": 0.9384890162005155,
+        "rel_sd": 0.32071024058283204,
+        "cv": 0.34173041457771286
+      },
+      {
+        "sgg": "속초",
+        "mult_mean": 0.9023808656867369,
+        "rel_sd": 0.2826209596427176,
+        "cv": 0.3131947610919644
+      },
+      {
+        "sgg": "평창",
+        "mult_mean": 0.8700604497810942,
+        "rel_sd": 0.2462563581984505,
+        "cv": 0.2830336194001327
+      },
+      {
+        "sgg": "영월",
+        "mult_mean": 0.9497097044714753,
+        "rel_sd": 0.26867897362452475,
+        "cv": 0.28290642115113246
+      },
+      {
+        "sgg": "정선",
+        "mult_mean": 0.934753533406971,
+        "rel_sd": 0.2620905881757335,
+        "cv": 0.2803846990772754
+      },
+      {
+        "sgg": "양양",
+        "mult_mean": 1.037126869724198,
+        "rel_sd": 0.25972567749519027,
+        "cv": 0.2504280672665041
+      },
+      {
+        "sgg": "삼척",
+        "mult_mean": 1.08992582411167,
+        "rel_sd": 0.2680678536452231,
+        "cv": 0.24595054793174423
+      },
+      {
+        "sgg": "동해",
+        "mult_mean": 1.0397526477920258,
+        "rel_sd": 0.25279192821182966,
+        "cv": 0.24312698673924782
+      },
+      {
+        "sgg": "원주",
+        "mult_mean": 1.083130941769854,
+        "rel_sd": 0.2606552987021976,
+        "cv": 0.2406498500322431
+      },
+      {
+        "sgg": "강릉",
+        "mult_mean": 1.010570980752288,
+        "rel_sd": 0.2386796824120153,
+        "cv": 0.2361829965019752
+      },
+      {
+        "sgg": "횡성",
+        "mult_mean": 1.146390003657063,
+        "rel_sd": 0.24226476929817783,
+        "cv": 0.21132840353225044
+      },
+      {
+        "sgg": "춘천",
+        "mult_mean": 1.2181800254062842,
+        "rel_sd": 0.25613762159729425,
+        "cv": 0.21026253612381135
+      },
+      {
+        "sgg": "홍천",
+        "mult_mean": 1.1316821237921824,
+        "rel_sd": 0.23787594589998293,
+        "cv": 0.21019678662315383
+      }
+    ],
+    "ops_priority_count": 16191,
+    "bym_vs_poisson_gamma": {
+      "sgg": [
+        {
+          "sgg": "속초",
+          "pg_mult": 0.5028922173840465,
+          "bym_mult": 0.9023808656867369,
+          "delta_mult": 0.3994886483026904,
+          "borrow": 0.3994886483026904,
+          "is_watch": false
+        },
+        {
+          "sgg": "태백",
+          "pg_mult": 0.6385121994622243,
+          "bym_mult": 0.9384890162005155,
+          "delta_mult": 0.29997681673829124,
+          "borrow": 0.29997681673829124,
+          "is_watch": true
+        },
+        {
+          "sgg": "춘천",
+          "pg_mult": 1.453039755133064,
+          "bym_mult": 1.2181800254062842,
+          "delta_mult": -0.23485972972677982,
+          "borrow": 0.23485972972677982,
+          "is_watch": false
+        },
+        {
+          "sgg": "평창",
+          "pg_mult": 0.686868840508887,
+          "bym_mult": 0.8700604497810942,
+          "delta_mult": 0.18319160927220723,
+          "borrow": 0.18319160927220723,
+          "is_watch": false
+        },
+        {
+          "sgg": "정선",
+          "pg_mult": 0.7577793814466128,
+          "bym_mult": 0.934753533406971,
+          "delta_mult": 0.17697415196035815,
+          "borrow": 0.17697415196035815,
+          "is_watch": false
+        },
+        {
+          "sgg": "동해",
+          "pg_mult": 0.9346509349614627,
+          "bym_mult": 1.0397526477920258,
+          "delta_mult": 0.10510171283056313,
+          "borrow": 0.10510171283056313,
+          "is_watch": false
+        },
+        {
+          "sgg": "강릉",
+          "pg_mult": 0.9458661337918555,
+          "bym_mult": 1.010570980752288,
+          "delta_mult": 0.06470484696043255,
+          "borrow": 0.06470484696043255,
+          "is_watch": false
+        },
+        {
+          "sgg": "영월",
+          "pg_mult": 0.8908560760494297,
+          "bym_mult": 0.9497097044714753,
+          "delta_mult": 0.058853628422045556,
+          "borrow": 0.058853628422045556,
+          "is_watch": false
+        },
+        {
+          "sgg": "횡성",
+          "pg_mult": 1.1785305380394373,
+          "bym_mult": 1.146390003657063,
+          "delta_mult": -0.03214053438237441,
+          "borrow": 0.03214053438237441,
+          "is_watch": false
+        },
+        {
+          "sgg": "양양",
+          "pg_mult": 1.0176617396718635,
+          "bym_mult": 1.037126869724198,
+          "delta_mult": 0.019465130052334523,
+          "borrow": 0.019465130052334523,
+          "is_watch": false
+        },
+        {
+          "sgg": "홍천",
+          "pg_mult": 1.1231490427809019,
+          "bym_mult": 1.1316821237921824,
+          "delta_mult": 0.008533081011280474,
+          "borrow": 0.008533081011280474,
+          "is_watch": false
+        },
+        {
+          "sgg": "원주",
+          "pg_mult": 1.0907433222345986,
+          "bym_mult": 1.083130941769854,
+          "delta_mult": -0.00761238046474455,
+          "borrow": 0.00761238046474455,
+          "is_watch": false
+        },
+        {
+          "sgg": "삼척",
+          "pg_mult": 1.0834676437414807,
+          "bym_mult": 1.08992582411167,
+          "delta_mult": 0.006458180370189304,
+          "borrow": 0.006458180370189304,
+          "is_watch": false
+        }
+      ],
+      "moran": {
+        "pg": 0.09811172406389584,
+        "bym": 0.11180700891583782
+      },
+      "borrow_mean_watch": 0.29997681673829124
+    },
+    "bym_tau": 10.0,
+    "bym_phi": 0.25,
+    "grid_adjacency": {
+      "n_grids": 106,
+      "mean_neighbors": 0.8113207547169812,
+      "n_isolated": 52,
+      "n_components": 67
+    }
+  }
+}
